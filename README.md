@@ -107,3 +107,22 @@ Tüm mimari kararlar, yapılan denetimler ve adım adım değişiklikler için [
 
 **© 2026 Ramazanoğlu Technologies Inc. Tüm hakları saklıdır.**  
 *Swiss-Style Architectural Minimalism & Zero-Local Dependency Engine*
+
+---
+
+## Kurulum ve Güvenlik Notları (Ekim 2026 sertleştirmesi)
+
+**Sunucu artık gerçek sırlar olmadan açılmaz.** Kaynak kodda hiçbir parola/anahtar yoktur.
+
+1. `cp cloud-backend/.env.example .env` (docker için kök dizine; doğrudan node için `cloud-backend/.env`)
+2. Sırları üretin: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`
+   - `SUPER_ADMIN_PASSWORD` (en az 16), `JWT_SECRET` (en az 32), `POSTGRES_PASSWORD`
+   - `IMAP_PASSWORD` / `SMTP_PASSWORD`: **yeni** Google uygulama şifresi
+3. `docker compose up -d --build` (Postgres dışarı açılmaz, backend sadece `127.0.0.1:8765`)
+4. İnternete açmak için önüne HTTPS koyun (Cloudflare Tunnel / Caddy / nginx) ve `TRUST_PROXY=1` yapın.
+
+**İstemciler:**
+- Mobil PWA: açılışta yönetici parolası sorar, 12 saatlik JWT alır (sessionStorage).
+- Masaüstü (Qt) ve kurulum sihirbazı: anahtar artık varsayılan olarak boştur; `config.json` içindeki `super_admin_key` ve kurulum ekranındaki alan elle doldurulur.
+
+**Geliştirme:** `MOCK_MODE=true` sahte verili, kalıcı olmayan demo çalıştırır; `/api/dev/*` yalnızca bu modda ve `NODE_ENV!=production` iken vardır.

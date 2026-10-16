@@ -229,34 +229,33 @@ const mockEmails: Email[] = [
 ];
 
 export async function initDatabase(): Promise<boolean> {
-  if (config.mockMode || !config.databaseUrl) {
-    console.log('[DB] Running in Mock/In-Memory mode (PostgreSQL URL not provided or MOCK_MODE=true)');
+  if (config.mockMode) {
+    console.log('[DB] MOCK_MODE=true: running with in-memory demo data (nothing is persisted).');
     isConnectedToPostgres = false;
     return false;
   }
 
-  try {
-    pool = new Pool({
-      connectionString: config.databaseUrl,
-      ssl: config.databaseUrl.includes('localhost') ? false : { rejectUnauthorized: false },
-      max: 10,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
-    });
-
-    const client = await pool.connect();
-    const res = await client.query('SELECT NOW() as current_time');
-    client.release();
-
-    isConnectedToPostgres = true;
-    console.log(`[DB] Successfully connected to Cloud PostgreSQL at ${res.rows[0].current_time}`);
-    return true;
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    console.warn(`[DB] Cloud PostgreSQL connection failed (${errorMsg}). Falling back to In-Memory resilient store.`);
-    isConnectedToPostgres = false;
-    return false;
+  // Real mode: demo data must never be shown as real mail, and a missing DB must not be hidden.
+  mockEmails.length = 0;
+  if (!config.databaseUrl) {
+    throw new Error('[DB] DATABASE_URL is required (or set MOCK_MODE=true for a throw-away demo).');
   }
+
+  pool = new Pool({
+    connectionString: config.databaseUrl,
+    ssl: config.databaseSsl ? { rejectUnauthorized: true } : false,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+  });
+
+  const client = await pool.connect();
+  const res = await client.query('SELECT NOW() as current_time');
+  client.release();
+
+  isConnectedToPostgres = true;
+  console.log(`[DB] Successfully connected to Cloud PostgreSQL at ${res.rows[0].current_time}`);
+  return true;
 }
 
 export function isDbConnected(): boolean {
@@ -270,6 +269,7 @@ export async function getAliases(): Promise<EmailAlias[]> {
       return res.rows;
     } catch (err) {
       console.error('[DB] Error querying aliases from PostgreSQL:', err);
+      if (!config.mockMode) throw err;
     }
   }
   return [...mockAliases];
@@ -291,12 +291,14 @@ export async function createAlias(aliasData: Partial<EmailAlias>): Promise<Email
       const res = await pool.query(
         `INSERT INTO aliases (email, display_name, department_badge, signature_html, is_active)
          VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (email) DO UPDATE SET is_active = TRUE
          RETURNING *`,
         [newAlias.email, newAlias.display_name, newAlias.department_badge, newAlias.signature_html, true]
       );
       return res.rows[0];
     } catch (err) {
       console.error('[DB] Error inserting alias into PostgreSQL:', err);
+      if (!config.mockMode) throw err;
     }
   }
 
@@ -350,7 +352,7 @@ export async function getEmails(params: {
           from_name ILIKE $${valIdx} OR
           body_text ILIKE $${valIdx}
         )`);
-        values.push(`%${params.search}%`);
+        values.push(`%${params.search.replace(/[\\%_]/g, '\\$&')}%`);
         valIdx++;
       }
 
@@ -386,6 +388,7 @@ export async function getEmails(params: {
       return { emails: res.rows, total };
     } catch (err) {
       console.error('[DB] PostgreSQL error in getEmails:', err);
+      if (!config.mockMode) throw err;
     }
   }
 
@@ -451,6 +454,7 @@ export async function getEmailById(id: string): Promise<Email | null> {
       if (res.rows.length > 0) return res.rows[0];
     } catch (err) {
       console.error('[DB] PostgreSQL error in getEmailById:', err);
+      if (!config.mockMode) throw err;
     }
   }
 
@@ -464,6 +468,7 @@ export async function checkMessageExists(messageId: string): Promise<boolean> {
       return res.rows.length > 0;
     } catch (err) {
       console.error('[DB] PostgreSQL error in checkMessageExists:', err);
+      if (!config.mockMode) throw err;
     }
   }
 
@@ -491,6 +496,7 @@ export async function saveEmail(email: Omit<Email, 'id'>, attachments: Omit<Emai
           to_addresses, cc_addresses, bcc_addresses, subject, body_text,
           body_html, is_read, is_starred, is_archived, direction, received_at, raw_headers
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        ON CONFLICT (message_id) DO NOTHING
         RETURNING *`,
         [
           fullEmail.message_id,
@@ -513,6 +519,11 @@ export async function saveEmail(email: Omit<Email, 'id'>, attachments: Omit<Emai
         ]
       );
 
+      if (emailRes.rows.length === 0) {
+        // Same Message-ID already stored (IMAP re-poll race): return the existing row, do not duplicate
+        const existing = await pool.query('SELECT * FROM emails WHERE message_id = $1', [fullEmail.message_id]);
+        return { ...existing.rows[0], attachments: [] };
+      }
       const savedDbEmail = emailRes.rows[0];
 
       if (attachments && attachments.length > 0) {
@@ -533,6 +544,7 @@ export async function saveEmail(email: Omit<Email, 'id'>, attachments: Omit<Emai
       return savedDbEmail;
     } catch (err) {
       console.error('[DB] PostgreSQL error in saveEmail:', err);
+      if (!config.mockMode) throw err;
     }
   }
 
@@ -546,11 +558,12 @@ export async function updateEmailStatus(
 ): Promise<Email | null> {
   if (isConnectedToPostgres && pool) {
     try {
-      const keys = Object.keys(updates);
+      const allowed = ['is_read', 'is_starred', 'is_archived'] as const;
+      const keys = allowed.filter((k) => typeof updates[k] === 'boolean');
       if (keys.length === 0) return getEmailById(id);
 
       const setClauses = keys.map((k, i) => `${k} = $${i + 2}`).join(', ');
-      const values = [id, ...Object.values(updates)];
+      const values = [id, ...keys.map((k) => updates[k])];
 
       const res = await pool.query(
         `UPDATE emails SET ${setClauses} WHERE id = $1 RETURNING *`,
@@ -559,6 +572,7 @@ export async function updateEmailStatus(
       if (res.rows.length > 0) return res.rows[0];
     } catch (err) {
       console.error('[DB] PostgreSQL error in updateEmailStatus:', err);
+      if (!config.mockMode) throw err;
     }
   }
 
@@ -579,6 +593,7 @@ export async function deleteEmail(id: string): Promise<boolean> {
       return (res.rowCount ?? 0) > 0;
     } catch (err) {
       console.error('[DB] PostgreSQL error in deleteEmail:', err);
+      if (!config.mockMode) throw err;
     }
   }
 

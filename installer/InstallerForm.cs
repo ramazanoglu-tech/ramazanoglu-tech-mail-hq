@@ -491,7 +491,8 @@ public class InstallerForm : Form
 
         txtAdminKey = new TextBox
         {
-            Text = "RamazanogluTech2026!Master",
+            Text = "",
+            UseSystemPasswordChar = true,
             Font = new Font("Consolas", 10F),
             Location = new Point(35, 255),
             Size = new Size(580, 28),

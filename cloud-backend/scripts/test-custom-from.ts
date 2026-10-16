@@ -1,4 +1,5 @@
-﻿import nodemailer from 'nodemailer';
+import 'dotenv/config';
+import nodemailer from 'nodemailer';
 
 async function testSmtpCustomFrom() {
   const transporter = nodemailer.createTransport({
@@ -6,17 +7,17 @@ async function testSmtpCustomFrom() {
     port: 465,
     secure: true,
     auth: {
-      user: 'yousefalrmdan@gmail.com',
-      pass: 'szzbbtagyywlgxlg',
+      user: (process.env.SMTP_USER || process.env.IMAP_USER || ''),
+      pass: (process.env.SMTP_PASSWORD || process.env.IMAP_PASSWORD || '').replace(/\s+/g, ''),
     },
   });
 
   try {
     const info = await transporter.sendMail({
       from: '"Ramazanoğlu Tech Relations" <contact@ramazanoglu.tech>',
-      sender: 'yousefalrmdan@gmail.com',
+      sender: (process.env.SMTP_USER || process.env.IMAP_USER || ''),
       replyTo: 'contact@ramazanoglu.tech',
-      to: 'yousefalrmdan@gmail.com',
+      to: (process.env.SMTP_USER || process.env.IMAP_USER || ''),
       subject: 'Test Custom From Domain',
       text: 'Testing contact@ramazanoglu.tech from header',
     });

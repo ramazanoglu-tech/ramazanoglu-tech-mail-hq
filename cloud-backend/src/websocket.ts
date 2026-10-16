@@ -4,8 +4,7 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server as HttpServer } from 'http';
-import jwt from 'jsonwebtoken';
-import { config } from './config.js';
+import { isValidAdminKey, verifyAdminToken } from './auth.js';
 import { WebSocketMessage } from './types.js';
 
 let wss: WebSocketServer | null = null;
@@ -26,22 +25,18 @@ export function initWebSocketServer(server: HttpServer): WebSocketServer {
       const adminHeader = req.headers['x-super-admin-key'] || req.headers['x-admin-key'];
 
       let authorized = false;
-      if (keyParam === config.superAdminPassword || adminHeader === config.superAdminPassword) {
+      if (isValidAdminKey(keyParam) || isValidAdminKey(adminHeader)) {
         authorized = true;
       } else {
         const tokenToVerify = bearerToken || keyParam;
-        if (tokenToVerify) {
-          try {
-            jwt.verify(tokenToVerify, config.jwtSecret);
-            authorized = true;
-          } catch {
-            authorized = false;
-          }
+        if (tokenToVerify && verifyAdminToken(tokenToVerify)) {
+          authorized = true;
         }
       }
 
       if (!authorized) {
-        console.warn(`[SECURITY VIOLATION] Unauthorized WebSocket connection rejected from ${clientIp} (URL: ${req.url})`);
+        // Never log req.url: it carries the credential in the query string
+        console.warn(`[SECURITY VIOLATION] Unauthorized WebSocket connection rejected from ${clientIp}`);
         ws.send(JSON.stringify({
           type: 'ERROR',
           payload: { error: 'Unauthorized: Valid Super Admin Key or JWT token required' },

@@ -2,24 +2,98 @@
 // RAMAZANOĞLU TECH MAIL HQ - MOBILE PWA CORE APPLICATION JAVASCRIPT
 // =============================================================================
 
-const SUPER_ADMIN_KEY = 'RamazanogluTech2026!Master';
+// No credential lives in this file. The user signs in with the super admin password,
+// the server returns a short-lived JWT, and it is kept in sessionStorage only (gone when the tab closes).
+const TOKEN_STORAGE_KEY = 'rt_mailhq_token';
 
 const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
   ? `${window.location.protocol}//${window.location.hostname}:8765/api`
   : `${window.location.origin}/api`;
 
-const WS_BASE = (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+const WS_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
   ? `ws://${window.location.hostname}:8765/ws`
-  : `ws${window.location.protocol === 'https:' ? 's' : ''}://${window.location.host}/ws`) + `?key=${SUPER_ADMIN_KEY}`;
+  : `ws${window.location.protocol === 'https:' ? 's' : ''}://${window.location.host}/ws`;
 
-// Automatic Zero-Trust Auth Header for all API calls
+function getToken() {
+  try {
+    return sessionStorage.getItem(TOKEN_STORAGE_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function setToken(token) {
+  try {
+    if (token) sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+    else sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    /* storage unavailable (private mode): session simply will not persist */
+  }
+}
+
+function logout() {
+  setToken('');
+  window.location.reload();
+}
+
+// Attach the Bearer token to API calls; an expired/invalid token sends the user back to the login screen
 const nativeFetch = window.fetch;
-window.fetch = function (url, options = {}) {
+window.fetch = async function (url, options = {}) {
   const opts = options || {};
   const headers = new Headers(opts.headers || {});
-  headers.set('X-Super-Admin-Key', SUPER_ADMIN_KEY);
-  return nativeFetch(url, { ...opts, headers });
+  const token = getToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const res = await nativeFetch(url, { ...opts, headers });
+  if (res.status === 401 && String(url).startsWith(API_BASE) && !String(url).includes('/auth/login')) {
+    setToken('');
+    showLogin('Oturum süresi doldu. Lütfen tekrar giriş yapın.');
+  }
+  return res;
 };
+
+// Login overlay (built in JS so no markup/inline-script is needed)
+function showLogin(message) {
+  if (document.getElementById('loginOverlay')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'loginOverlay';
+  overlay.style.cssText =
+    'position:fixed;inset:0;z-index:9999;background:#FBFBF9;display:flex;align-items:center;justify-content:center;padding:16px;';
+  overlay.innerHTML = `
+    <form id="loginForm" style="width:100%;max-width:360px;border:1px solid #E2E2DF;padding:24px;background:#fff;font-family:var(--font-ui, Inter, sans-serif);">
+      <div style="font-family:var(--font-mono, monospace);font-size:11px;letter-spacing:.08em;margin-bottom:16px;">RAMAZANOĞLU TECH // MAIL HQ <span style="display:inline-block;width:6px;height:6px;background:#D9381E;margin-left:4px;"></span></div>
+      <label for="loginPassword" style="display:block;font-size:12px;margin-bottom:6px;">Yönetici parolası</label>
+      <input id="loginPassword" type="password" autocomplete="current-password" required
+        style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #111;border-radius:0;font-size:16px;">
+      <div id="loginError" role="alert" style="color:#D9381E;font-size:12px;min-height:18px;margin:8px 0;"></div>
+      <button type="submit" style="width:100%;padding:10px;background:#111;color:#fff;border:0;border-radius:0;font-family:var(--font-mono, monospace);letter-spacing:.06em;cursor:pointer;">GİRİŞ YAP</button>
+    </form>`;
+  document.body.appendChild(overlay);
+  const err = overlay.querySelector('#loginError');
+  if (message) err.textContent = message;
+  overlay.querySelector('#loginPassword').focus();
+  overlay.querySelector('#loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    err.textContent = '';
+    try {
+      const res = await nativeFetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: overlay.querySelector('#loginPassword').value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.token) {
+        setToken(data.token);
+        window.location.reload();
+      } else if (res.status === 429) {
+        err.textContent = 'Çok fazla deneme. Lütfen 15 dakika sonra tekrar deneyin.';
+      } else {
+        err.textContent = 'Parola hatalı.';
+      }
+    } catch {
+      err.textContent = 'Sunucuya ulaşılamadı.';
+    }
+  });
+}
 
 // State
 let aliases = [];
@@ -78,6 +152,11 @@ let availableTemplates = [];
 // 1. Initialize PWA
 async function initApp() {
   registerServiceWorker();
+
+  if (!getToken()) {
+    showLogin();
+    return;
+  }
   requestNotificationPermission();
 
   await loadAliases();
@@ -124,7 +203,8 @@ function requestNotificationPermission() {
 // 3. WebSocket Real-time Live Sync
 function initWebSocket() {
   try {
-    ws = new WebSocket(WS_BASE);
+    // The browser WebSocket API cannot set headers, so the short-lived JWT travels as a query parameter
+    ws = new WebSocket(`${WS_URL}?token=${encodeURIComponent(getToken())}`);
 
     ws.onopen = () => {
       console.log('[WS] Connected to Ramazanoğlu Tech Cloud Live Stream');
@@ -219,7 +299,7 @@ function selectAliasFilter(alias) {
 
 function renderIdentitySelects() {
   const optionsHtml = aliases
-    .map((a) => `<option value="${a.email}">${a.department_badge} &lt;${a.email}&gt; — ${a.display_name}</option>`)
+    .map((a) => `<option value="${escapeHtml(a.email)}">${escapeHtml(a.department_badge)} &lt;${escapeHtml(a.email)}&gt; — ${escapeHtml(a.display_name)}</option>`)
     .join('');
 
   replyFromSelect.innerHTML = optionsHtml;
@@ -231,7 +311,12 @@ function updateComposeSignaturePreview() {
   const selectedEmailAddr = composeFromSelect.value;
   const aliasObj = aliases.find((a) => a.email.toLowerCase() === selectedEmailAddr.toLowerCase());
   if (aliasObj && aliasObj.signature_html) {
-    composeSignaturePreview.innerHTML = aliasObj.signature_html;
+    composeSignaturePreview.textContent = '';
+    const sigFrame = document.createElement('iframe');
+    sigFrame.setAttribute('sandbox', '');
+    sigFrame.style.cssText = 'width:100%;height:140px;border:0;background:#fff;';
+    sigFrame.srcdoc = aliasObj.signature_html;
+    composeSignaturePreview.appendChild(sigFrame);
   } else {
     composeSignaturePreview.innerHTML = '<em>(İmza tanımlanmamış)</em>';
   }
@@ -281,10 +366,10 @@ function renderEmailList(items, total) {
       const isUnread = !item.is_read;
 
       return `
-        <li class="email-item ${isUnread ? 'unread' : ''}" onclick="openEmailDetail('${item.id}')">
+        <li class="email-item ${isUnread ? 'unread' : ''}" data-id="${escapeHtml(String(item.id))}">
           <div class="email-meta-row">
             <div>
-              <span class="badge-tag">${badge}</span>
+              <span class="badge-tag">${escapeHtml(badge)}</span>
               <span class="sender-name">${escapeHtml(item.from_name || item.from_address)}</span>
             </div>
             <span class="time-stamp">${dateStr}</span>
@@ -295,6 +380,11 @@ function renderEmailList(items, total) {
       `;
     })
     .join('');
+
+  // CSP forbids inline handlers: bind clicks here
+  emailList.querySelectorAll('.email-item').forEach((li) => {
+    li.addEventListener('click', () => window.openEmailDetail(li.dataset.id));
+  });
 }
 
 // 6. Email Reading & Quick Reply
@@ -317,12 +407,17 @@ window.openEmailDetail = function (emailId) {
   btnToggleStar.textContent = item.is_starred ? '★ YILDIZLI' : '☆ YILDIZLA';
   btnToggleRead.textContent = item.is_read ? 'OKUNMADI YAP' : 'OKUNDU İŞARETLE';
 
-  // Body Content
-  if (item.body_html) {
-    detailBodyContent.innerHTML = item.body_html;
-  } else {
-    detailBodyContent.innerHTML = `<pre style="font-family: var(--font-ui); white-space: pre-wrap;">${escapeHtml(item.body_text || '')}</pre>`;
-  }
+  // Body Content. Received HTML is attacker-controlled: render it in a fully sandboxed iframe
+  // (no scripts, no same-origin access, no forms/popups) so it can never touch the admin session.
+  detailBodyContent.textContent = '';
+  const frame = document.createElement('iframe');
+  frame.setAttribute('sandbox', '');
+  frame.setAttribute('referrerpolicy', 'no-referrer');
+  frame.style.cssText = 'width:100%;min-height:320px;border:0;background:#fff;';
+  frame.srcdoc = item.body_html
+    ? `<base target="_blank"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">${item.body_html}`
+    : `<pre style="font-family:sans-serif;white-space:pre-wrap;">${escapeHtml(item.body_text || '')}</pre>`;
+  detailBodyContent.appendChild(frame);
 
   // Smart Identity Selector: Auto-select target alias in quick reply
   replyFromSelect.value = item.alias_target;
@@ -533,7 +628,7 @@ function setupEventListeners() {
     }
   });
 
-  // Dev simulation
+  // Dev simulation: the endpoint only exists when the server runs with MOCK_MODE=true (404 otherwise)
   btnSimulate.addEventListener('click', async () => {
     const target = currentAliasFilter === 'all' ? 'info@ramazanoglu.tech' : currentAliasFilter;
     try {

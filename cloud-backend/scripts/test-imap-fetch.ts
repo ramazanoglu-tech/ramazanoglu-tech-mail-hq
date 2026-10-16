@@ -1,14 +1,15 @@
-﻿import imaps from 'imap-simple';
+import 'dotenv/config';
+import imaps from 'imap-simple';
 
 async function inspectLatestMails() {
   const config = {
     imap: {
-      user: 'yousefalrmdan@gmail.com',
-      password: 'szzbbtagyywlgxlg',
+      user: (process.env.SMTP_USER || process.env.IMAP_USER || ''),
+      password: (process.env.SMTP_PASSWORD || process.env.IMAP_PASSWORD || '').replace(/\s+/g, ''),
       host: 'imap.gmail.com',
       port: 993,
       tls: true,
-      tlsOptions: { rejectUnauthorized: false },
+      tlsOptions: { rejectUnauthorized: true },
       authTimeout: 15000,
     },
   };

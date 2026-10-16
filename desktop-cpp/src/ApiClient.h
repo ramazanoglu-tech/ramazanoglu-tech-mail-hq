@@ -78,7 +78,7 @@ private:
     QString m_baseUrl;
     QString m_wsUrl;
     QString m_authToken;
-    QString m_superAdminKey{"RamazanogluTech2026!Master"};
+    QString m_superAdminKey;  // loaded from config.json (super_admin_key); never hardcode
     QNetworkAccessManager* m_netManager{nullptr};
     QWebSocket* m_webSocket{nullptr};
     QTimer* m_wsReconnectTimer{nullptr};

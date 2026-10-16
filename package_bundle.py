@@ -38,7 +38,7 @@ def prepare_staging_and_zip():
     config_content = """{
   "api_base_url": "http://localhost:8765",
   "ws_url": "ws://localhost:8765/ws",
-  "super_admin_key": "RamazanogluTech2026!Master",
+  "super_admin_key": "",
   "domain": "@ramazanoglu.tech",
   "installation_target": "SUPER_ADMIN_PARTNER"
 }"""

@@ -32,7 +32,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
     QString baseUrl = "http://localhost:8765";
     QString wsUrl = "ws://localhost:8765/ws";
-    QString adminKey = "RamazanogluTech2026!Master";
+    QString adminKey;  // must come from config.json (super_admin_key)
 
     QString configPath = QDir(QCoreApplication::applicationDirPath()).filePath("config.json");
     if (QFile::exists(configPath)) {

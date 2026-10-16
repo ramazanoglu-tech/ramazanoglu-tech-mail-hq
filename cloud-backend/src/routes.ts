@@ -3,8 +3,8 @@
 // =============================================================================
 
 import { Router, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
 import { config } from './config.js';
+import { isValidAdminKey, signAdminToken, verifyAdminToken } from './auth.js';
 import {
   getAliases,
   createAlias,
@@ -30,10 +30,18 @@ interface RateLimitEntry {
 }
 const rateLimitMap = new Map<string, RateLimitEntry>();
 
+// Purge expired entries so the map cannot grow without bound
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of rateLimitMap) {
+    if (now > v.resetTime) rateLimitMap.delete(k);
+  }
+}, 60 * 1000).unref();
+
 export function createRateLimiter(maxRequests: number, windowMs: number) {
   return (req: Request, res: Response, next: () => void) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const key = `${req.path}:${ip}`;
+    const key = `${req.baseUrl}${req.path}:${ip}`;
     const now = Date.now();
     const entry = rateLimitMap.get(key);
 
@@ -64,7 +72,7 @@ const syncLimiter = createRateLimiter(5, 60 * 1000); // 5 manual syncs per min
 export function requireAdminAuth(req: Request, res: Response, next: () => void) {
   // Check X-Super-Admin-Key header (for automated desktop clients / services)
   const adminKey = req.headers['x-super-admin-key'] || req.headers['x-admin-key'];
-  if (adminKey && adminKey === config.superAdminPassword) {
+  if (isValidAdminKey(adminKey)) {
     (req as Request & { user?: unknown }).user = { role: 'SUPER_ADMIN', authMethod: 'API_KEY' };
     return next();
   }
@@ -73,14 +81,13 @@ export function requireAdminAuth(req: Request, res: Response, next: () => void) 
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
-    try {
-      const decoded = jwt.verify(token, config.jwtSecret);
+    const decoded = verifyAdminToken(token);
+    if (decoded) {
       (req as Request & { user?: unknown }).user = decoded;
       return next();
-    } catch {
-      res.status(401).json({ error: 'Unauthorized: Invalid or expired Bearer token.' });
-      return;
     }
+    res.status(401).json({ error: 'Unauthorized: Invalid or expired Bearer token.' });
+    return;
   }
 
   // Reject unauthorized access with zero data leakage
@@ -90,17 +97,13 @@ export function requireAdminAuth(req: Request, res: Response, next: () => void) 
 
 // 1. Super Admin Authentication (Brute-Force Protected)
 apiRouter.post('/auth/login', loginLimiter, (req: Request, res: Response) => {
-  const { password } = req.body;
-  if (!password || password !== config.superAdminPassword) {
+  const { password } = req.body || {};
+  if (!isValidAdminKey(password)) {
     res.status(401).json({ error: 'Invalid Super Admin password.' });
     return;
   }
 
-  const token = jwt.sign(
-    { role: 'SUPER_ADMIN', email: 'yusuf@ramazanoglu.tech', name: 'Yusuf Ramazanoğlu' },
-    config.jwtSecret,
-    { expiresIn: '30d' }
-  );
+  const token = signAdminToken();
 
   res.json({
     token,
@@ -114,6 +117,11 @@ apiRouter.post('/auth/login', loginLimiter, (req: Request, res: Response) => {
 
 // 2. Health & Telemetry Status
 apiRouter.get('/health', (req: Request, res: Response) => {
+  // Public liveness probe: no operational details. Authenticated clients get telemetry via /api/stats.
+  res.json({ status: 'ONLINE', timestamp: new Date().toISOString() });
+});
+
+apiRouter.get('/health/details', requireAdminAuth, (req: Request, res: Response) => {
   const syncStatus = getSyncStatus();
   syncStatus.connected_clients = getConnectedClientCount();
   res.json({
@@ -138,15 +146,15 @@ apiRouter.get('/aliases', requireAdminAuth, async (req: Request, res: Response) 
 });
 
 // 3.1 Email Templates Catalog
-apiRouter.get('/templates', (_req: Request, res: Response) => {
+apiRouter.get('/templates', requireAdminAuth, (_req: Request, res: Response) => {
   res.json({ templates: SWISS_EMAIL_TEMPLATES });
 });
 
 apiRouter.post('/aliases', requireAdminAuth, async (req: Request, res: Response) => {
   try {
-    const { email, display_name, department_badge, signature_html } = req.body;
-    if (!email || !email.toLowerCase().endsWith(config.domainFilter)) {
-      res.status(400).json({ error: `Alias email must belong strictly to ${config.domainFilter}` });
+    const { email, display_name, department_badge, signature_html } = req.body || {};
+    if (typeof email !== 'string' || !/^[a-z0-9._-]{1,64}@[a-z0-9.-]+$/i.test(email) || !email.toLowerCase().endsWith(config.domainFilter)) {
+      res.status(400).json({ error: `Alias email must be a simple address belonging strictly to ${config.domainFilter}` });
       return;
     }
     const created = await createAlias({
@@ -171,8 +179,10 @@ apiRouter.get('/emails', requireAdminAuth, async (req: Request, res: Response) =
     const archived = req.query.archived !== undefined ? req.query.archived === 'true' : undefined;
     const direction = req.query.direction as string | undefined;
     const search = req.query.search as string | undefined;
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
-    const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
+    const rawLimit = parseInt(String(req.query.limit ?? '50'), 10);
+    const rawOffset = parseInt(String(req.query.offset ?? '0'), 10);
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 200) : 50;
+    const offset = Number.isFinite(rawOffset) ? Math.max(rawOffset, 0) : 0;
 
     const result = await getEmails({
       alias,
@@ -257,16 +267,22 @@ apiRouter.delete('/emails/:id', requireAdminAuth, async (req: Request, res: Resp
 // 8. Outbound Dispatcher (Send Email as Alias - Rate Limited & Auth Required)
 apiRouter.post('/emails/send', requireAdminAuth, sendLimiter, async (req: Request, res: Response) => {
   try {
-    const { from_alias, to, cc, bcc, subject, body_text, body_html, in_reply_to, thread_id } = req.body;
+    const { from_alias, to, cc, bcc, subject, body_text, body_html, in_reply_to, thread_id } = req.body || {};
 
-    if (!from_alias || !to || !subject) {
+    if (typeof from_alias !== 'string' || !to || typeof subject !== 'string' || !subject.trim()) {
       res.status(400).json({ error: 'Missing required fields: from_alias, to, and subject are mandatory.' });
       return;
     }
 
-    const toAddresses = Array.isArray(to) ? to : [to];
-    const ccAddresses = Array.isArray(cc) ? cc : cc ? [cc] : [];
-    const bccAddresses = Array.isArray(bcc) ? bcc : bcc ? [bcc] : [];
+    const asList = (v: unknown): string[] =>
+      (Array.isArray(v) ? v : v ? [v] : []).map((x: unknown) => String(x));
+    const toAddresses = asList(to);
+    const ccAddresses = asList(cc);
+    const bccAddresses = asList(bcc);
+    if (toAddresses.length + ccAddresses.length + bccAddresses.length > 50) {
+      res.status(400).json({ error: 'Too many recipients (max 50 per message).' });
+      return;
+    }
 
     const sentEmail = await sendEmailAsAlias({
       from_alias,
@@ -275,7 +291,14 @@ apiRouter.post('/emails/send', requireAdminAuth, sendLimiter, async (req: Reques
       bcc: bccAddresses,
       subject,
       body_text,
-      body_html: body_html || `<p>${body_text || ''}</p>`,
+      body_html:
+        typeof body_html === 'string' && body_html
+          ? body_html
+          : `<p>${String(body_text || '')
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/\n/g, '<br>')}</p>`,
       in_reply_to,
       thread_id,
     });
@@ -284,7 +307,13 @@ apiRouter.post('/emails/send', requireAdminAuth, sendLimiter, async (req: Reques
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[HTTP ERROR in /emails/send]:', msg);
-    res.status(500).json({ error: msg });
+    // Validation errors from the dispatcher are the caller's fault; SMTP failures are a bad gateway.
+    const status = /^(Security validation|Unauthorized sender|At least one|Email subject)/.test(msg)
+      ? 400
+      : /^SMTP delivery failed/.test(msg)
+        ? 502
+        : 500;
+    res.status(status).json({ error: msg });
   }
 });
 
@@ -310,8 +339,14 @@ apiRouter.post('/sync/trigger', requireAdminAuth, syncLimiter, async (req: Reque
   }
 });
 
-// 11. Dev Simulation Endpoint (Inject sample @ramazanoglu.tech incoming email)
-apiRouter.post('/dev/simulate', requireAdminAuth, async (req: Request, res: Response) => {
+// 11. Dev Simulation Endpoint: only mounted when MOCK_MODE=true and NODE_ENV != production
+apiRouter.post('/dev/simulate', (req: Request, res: Response, next: () => void) => {
+  if (!config.enableDevEndpoints) {
+    res.status(404).json({ error: 'Not found.' });
+    return;
+  }
+  next();
+}, requireAdminAuth, async (req: Request, res: Response) => {
   try {
     const {
       alias_target = 'info@ramazanoglu.tech',

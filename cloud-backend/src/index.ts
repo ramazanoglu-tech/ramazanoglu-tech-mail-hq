@@ -16,32 +16,53 @@ import { startImapSyncEngine } from './imapSync.js';
 const app = express();
 const server = http.createServer(app);
 
+app.disable('x-powered-by');
+// Behind a reverse proxy / tunnel, trust N hops so req.ip (rate limiting) is the real client IP
+app.set('trust proxy', config.trustProxy);
+
 // Security Headers & Hardening Middleware
 app.use((_req: Request, res: Response, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  // Remote images/trackers inside received e-mails are blocked by img-src; scripts only from self.
+  res.setHeader(
+    'Content-Security-Policy',
+    [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data:",
+      "connect-src 'self' ws: wss:",
+      "frame-src 'self'",
+      "object-src 'none'",
+      "base-uri 'none'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+    ].join('; ')
+  );
+  if (config.nodeEnv === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
   next();
 });
 
-// Middleware
+// CORS: same-origin PWA needs none. Native clients send no Origin header. Others must be allow-listed.
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow local tools, electron/Qt desktop headers, native mobile apps, and ramazanoglu.tech
-    if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.endsWith('ramazanoglu.tech')) {
+    if (!origin || config.allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    // Permissive for development while logging security trace
-    return callback(null, true);
+    return callback(null, false);
   },
-  credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Super-Admin-Key', 'X-Admin-Key', 'User-Agent'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Super-Admin-Key', 'X-Admin-Key'],
 }));
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+app.use(express.json({ limit: '2mb' }));
 
 // Request logging (Swiss minimalist log format)
 app.use((req: Request, res: Response, next) => {
@@ -65,22 +86,16 @@ app.use('/pwa', express.static(pwaDistPath));
 app.use('/pwa', express.static(pwaPublicPath));
 app.use('/', express.static(pwaPublicPath));
 
-// Fallback index
-app.get('/info', (req: Request, res: Response) => {
-  res.json({
-    brand: 'Ramazanoğlu Technologies Inc.',
-    suite: 'Mail HQ Super Admin Cloud Backend',
-    version: '1.0.0',
-    status: 'ONLINE',
-    docs: {
-      health: '/api/health',
-      aliases: '/api/aliases',
-      emails: '/api/emails',
-      stats: '/api/stats',
-      websocket: '/ws',
-      mobile_pwa: '/pwa',
-    },
-  });
+// Unknown API routes: JSON 404 instead of leaking framework error pages
+app.use('/api', (_req: Request, res: Response) => {
+  res.status(404).json({ error: 'Not found.' });
+});
+
+// Last-resort error handler: never leak stack traces to clients
+app.use((err: unknown, _req: Request, res: Response, _next: express.NextFunction) => {
+  const status = typeof (err as { status?: unknown })?.status === 'number' ? (err as { status: number }).status : 500;
+  if (status >= 500) console.error('[HTTP FATAL]', err);
+  res.status(status).json({ error: status >= 500 ? 'Internal server error.' : 'Bad request.' });
 });
 
 async function bootstrap() {
@@ -103,19 +118,28 @@ async function bootstrap() {
     console.log(`[HTTP] REST API running at http://${config.host}:${config.port}/api`);
     console.log(`[WS] WebSocket stream running at ws://${config.host}:${config.port}/ws`);
     console.log(`[PWA] Mobile Web Client accessible at http://${config.host}:${config.port}/`);
+    if (config.host === '0.0.0.0' && config.nodeEnv === 'production') {
+      console.warn('[SECURITY] Listening on 0.0.0.0 without TLS. Put this behind HTTPS (Cloudflare Tunnel / nginx / Caddy).');
+    }
   });
 
   // 5. Start 7/24 Cloud IMAP Synchronization Listener
   await startImapSyncEngine();
 }
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\n[SERVER] Gracefully shutting down Ramazanoğlu Tech Mail HQ...');
+// Graceful shutdown (SIGTERM is what docker/pm2/systemd send)
+function shutdown(signal: string) {
+  console.log(`\n[SERVER] ${signal} received. Gracefully shutting down Ramazanoğlu Tech Mail HQ...`);
   server.close(() => {
     console.log('[SERVER] Closed all active connections.');
     process.exit(0);
   });
+  setTimeout(() => process.exit(0), 5000).unref();
+}
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED REJECTION]', reason);
 });
 
 bootstrap().catch((err) => {

@@ -59,7 +59,7 @@ async function connectAndListen() {
       host: config.imap.host,
       port: config.imap.port,
       tls: config.imap.tls,
-      tlsOptions: { rejectUnauthorized: false },
+      tlsOptions: { rejectUnauthorized: true, servername: config.imap.host },
       authTimeout: 15000,
       keepalive: {
         interval: 10000,
@@ -94,11 +94,17 @@ async function connectAndListen() {
   }
 }
 
+let reconnectTimer: NodeJS.Timeout | null = null;
+
 function handleDisconnect() {
   imapConnection = null;
-  if (config.imap.autoReconnect) {
+  // 'error' and 'end' both fire on a drop: schedule exactly one reconnect
+  if (config.imap.autoReconnect && !reconnectTimer) {
     console.log('[IMAP] Reconnecting in 10 seconds...');
-    setTimeout(connectAndListen, 10000);
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      connectAndListen().catch((err) => console.error('[IMAP Reconnect Error]:', err));
+    }, 10000);
   }
 }
 
@@ -229,11 +235,15 @@ export async function pollInbox() {
         const match = orig.match(/<([^>]+)>/);
         if (match) fromAddr = match[1];
       }
-      if (headersRecord['x-ramazanoglu-identity']) {
-        fromAddr = String(headersRecord['x-ramazanoglu-identity'][0] || headersRecord['x-ramazanoglu-identity']);
-      }
+      // NOTE: X-Ramazanoglu-Identity is deliberately NOT trusted here: any outside sender can forge it
+      // to impersonate an internal address and flip the message to OUTBOUND.
 
-      const isOutbound = fromAddr.toLowerCase().endsWith(config.domainFilter.toLowerCase());
+      // Outbound = sent from our own Gmail account (relayed with our SMTP user), not merely "From: @ramazanoglu.tech",
+      // which anybody on the internet can spoof.
+      const relayedByOurGmail = Boolean(headersRecord['x-google-original-from']);
+      const fromOurSmtpUser = Boolean(config.smtp.user) && fromAddr.toLowerCase() === config.smtp.user.toLowerCase();
+      const isOutbound =
+        (relayedByOurGmail && fromAddr.toLowerCase().endsWith(config.domainFilter)) || fromOurSmtpUser;
       const direction: 'INBOUND' | 'OUTBOUND' = isOutbound ? 'OUTBOUND' : 'INBOUND';
 
       // Save into Cloud Database
