@@ -1,0 +1,17 @@
+{
+  "name": "ramazanoglu-tech-mail-mobile-pwa",
+  "version": "1.0.0",
+  "description": "Mobile & Web PWA Client for Ramazanoğlu Tech Mail HQ",
+  "scripts": {
+    "dev": "npx serve public -l 5173",
+    "start": "npx serve public -l 5173"
+  },
+  "keywords": [
+    "ramazanoglu-tech",
+    "pwa",
+    "swiss-design",
+    "email-client"
+  ],
+  "author": "Ramazanoğlu Technologies Inc.",
+  "license": "Proprietary"
+}

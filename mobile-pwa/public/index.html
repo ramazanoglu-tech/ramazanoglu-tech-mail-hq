@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ramazanoğlu Tech // Mail HQ Super Admin</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <meta name="theme-color" content="#111111">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RT Mail HQ">
+  <link rel="stylesheet" href="./app.css">
+</head>
+<body>
+
+  <!-- TOP APP BAR -->
+  <header class="app-header">
+    <div class="brand-block">
+      <span class="brand-title">RAMAZANOĞLU TECH</span>
+      <span class="brand-sub">MAIL HQ // SUPER ADMIN</span>
+    </div>
+    <div class="header-actions">
+      <div id="statusPill" class="status-pill">BULUT: BAĞLANIYOR...</div>
+      <button id="btnOpenCompose" class="btn-primary">+ YENİ</button>
+    </div>
+  </header>
+
+  <!-- HORIZONTAL ALIAS SCROLLER -->
+  <nav class="alias-scroller" id="aliasScroller">
+    <button class="alias-chip active" data-alias="all">ALL TRAFFIC [MASTER]</button>
+    <!-- Dynamic aliases loaded here -->
+  </nav>
+
+  <!-- CONTROLS & FILTER BAR -->
+  <section class="controls-bar">
+    <input type="search" id="searchInput" class="search-input" placeholder="Maillerde ara (Kimden, Konu, İçerik)..." autocomplete="off">
+    <div class="filter-segments">
+      <button class="filter-segment-btn active" data-filter="all">TÜMÜ</button>
+      <button class="filter-segment-btn" data-filter="unread">OKUNMAMIŞ</button>
+      <button class="filter-segment-btn" data-filter="starred">YILDIZLI</button>
+      <button class="filter-segment-btn" data-filter="sent">GÖNDERİLEN</button>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-secondary);">
+      <span id="emailCountLabel">Yükleniyor...</span>
+      <button id="btnSimulate" class="btn-icon" style="font-size: 10px; padding: 3px 6px;">[SİMÜLE ET: TEST MAİLİ]</button>
+    </div>
+  </section>
+
+  <!-- EMAILS LIST -->
+  <main>
+    <ul class="email-list" id="emailList">
+      <div class="empty-state">Bulut veritabanından mailler çekiliyor...</div>
+    </ul>
+  </main>
+
+  <!-- READING SLIDE-OVER PANE -->
+  <div class="detail-overlay" id="detailOverlay">
+    <div class="detail-header-bar">
+      <button id="btnCloseDetail" class="btn-icon">&larr; GERİ</button>
+      <div style="display: flex; gap: 6px;">
+        <button id="btnToggleStar" class="btn-icon">★</button>
+        <button id="btnToggleRead" class="btn-icon">OKUNDU</button>
+        <button id="btnDeleteEmail" class="btn-icon" style="color: var(--accent-alert);">SİL</button>
+      </div>
+    </div>
+
+    <div class="detail-content">
+      <div style="margin-bottom: 8px;">
+        <span id="detailBadge" class="badge-tag">[INFO]</span>
+        <span id="detailAliasTarget" style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-secondary);">info@ramazanoglu.tech</span>
+      </div>
+      <h2 id="detailSubject" class="detail-subject">-</h2>
+
+      <div class="detail-meta-card">
+        <div class="meta-row">
+          <span class="meta-label">KİMDEN:</span>
+          <span class="meta-val" id="detailFrom">-</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">KİME:</span>
+          <span class="meta-val" id="detailTo">-</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">TARİH:</span>
+          <span class="meta-val" id="detailDate">-</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">MSG-ID:</span>
+          <span class="meta-val" id="detailMsgId">-</span>
+        </div>
+      </div>
+
+      <!-- Content Reader -->
+      <div class="detail-body" id="detailBodyContent"></div>
+
+      <!-- Quick Reply Drawer with Smart Identity Selector -->
+      <div class="reply-card">
+        <div class="reply-card-title">HIZLI YANITLA // AKILLI KİMLİK EŞLEŞTİRME</div>
+        <div class="identity-select-row">
+          <label style="font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: var(--ink-secondary);">FROM:</label>
+          <select id="replyFromSelect" class="select-input"></select>
+        </div>
+        <input type="text" id="replySubjectInput" class="search-input" style="font-family: var(--font-mono); font-size: 12px;">
+        <textarea id="replyBodyInput" class="textarea-input" placeholder="Kurumsal yanıtınızı buraya yazın..."></textarea>
+        <div style="display: flex; justify-content: flex-end;">
+          <button id="btnSendReply" class="btn-primary">SMTP İLE YANITLA</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPOSE MODAL -->
+  <div class="modal-overlay" id="composeModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <span style="font-family: var(--font-mono); font-size: 12px; font-weight: 700;">YENİ KURUMSAL E-POSTA GÖNDER</span>
+        <button id="btnCloseCompose" class="btn-icon">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group">
+          <label class="input-label">GÖNDERİCİ (FROM ALIAS):</label>
+          <select id="composeFromSelect" class="select-input"></select>
+        </div>
+        <div class="input-group">
+          <label class="input-label">ALICI (TO):</label>
+          <input type="email" id="composeToInput" class="search-input" placeholder="alici@kurum.com, diger@sirket.ch">
+        </div>
+        <div class="input-group">
+          <label class="input-label">BİLGİ (CC):</label>
+          <input type="text" id="composeCcInput" class="search-input" placeholder="İsteğe bağlı kopya adresler">
+        </div>
+        <div class="input-group">
+          <label class="input-label">HAZIR SWISS MİMARİ ŞABLON (TEMPLATE):</label>
+          <select id="composeTemplateSelect" class="select-input">
+            <option value="">-- Şablon Seçin (İsteğe Bağlı) --</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label class="input-label">KONU (SUBJECT):</label>
+          <input type="text" id="composeSubjectInput" class="search-input" placeholder="E-posta konusu">
+        </div>
+        <div class="input-group">
+          <label class="input-label">İÇERİK (BODY):</label>
+          <textarea id="composeBodyInput" class="textarea-input" style="min-height: 140px;" placeholder="Kurumsal mesajınızı buraya yazın..."></textarea>
+        </div>
+        <div class="input-group">
+          <label class="input-label">OTOMATİK SWISS KURUMSAL İMZA ÖNİZLEMESİ:</label>
+          <div id="composeSignaturePreview" style="background: var(--bg-panel); border: var(--border-grid); padding: 10px; font-size: 12px;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnCancelCompose" class="btn-secondary">İPTAL</button>
+        <button id="btnDispatchSend" class="btn-primary">BULUT SMTP İLE GÖNDER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT -->
+  <script src="./app.js"></script>
+</body>
+</html>

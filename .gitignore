@@ -1,0 +1,72 @@
+# =============================================================================
+# RAMAZANOĞLU TECH MAIL HQ - ROOT GITIGNORE
+# =============================================================================
+
+# --- 1. CRITICAL CREDENTIALS & SECRETS ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.cert
+*.pfx
+
+# --- 2. LOGS & DIAGNOSTICS ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+installer_debug.log
+
+# --- 3. NODE.JS & TYPESCRIPT ---
+node_modules/
+dist/
+cloud-backend/dist/
+mobile-pwa/dist/
+.npm/
+.eslintcache
+
+# --- 4. C++ / CMAKE / MSVC BUILD DIRECTORIES ---
+desktop-cpp/build/
+desktop-cpp/bin/
+desktop-cpp/out/
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.dir/
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.slnx
+*.obj
+*.ilk
+*.pdb
+*.tlog
+*.idb
+*.exp
+*.lib
+*.manifest
+*.res
+*.qrc_*.cpp
+mocs_compilation_*.cpp
+
+# --- 5. .NET / C# INSTALLER BUILD ARTIFACTS ---
+installer/bin/
+installer/obj/
+installer/payload.zip
+staging_bundle/
+*.user
+*.suo
+*.userosscache
+
+# --- 6. OPERATING SYSTEM & IDE CACHES ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*~

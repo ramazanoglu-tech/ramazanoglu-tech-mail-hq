@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # Cloud PostgreSQL (Neon / Supabase local equivalent for testing)
+  postgres:
+    image: postgres:16-alpine
+    container_name: ramazanoglu_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: RamazanogluTech2026!Db
+      POSTGRES_DB: ramazanoglu_mail_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./cloud-backend/schema.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 7/24 IMAP/SMTP Cloud Sync Engine & Super Admin REST/WebSocket API
+  backend:
+    build:
+      context: ./cloud-backend
+      dockerfile: Dockerfile
+    container_name: ramazanoglu_cloud_backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8765:8765"
+    environment:
+      PORT: 8765
+      HOST: "0.0.0.0"
+      DATABASE_URL: "postgresql://postgres:RamazanogluTech2026!Db@postgres:5432/ramazanoglu_mail_db"
+      SUPER_ADMIN_PASSWORD: "RamazanogluTech2026!Master"
+      JWT_SECRET: "ramazanoglu-tech-cloud-super-admin-jwt-secret-key-32chars-min"
+      DOMAIN_FILTER: "@ramazanoglu.tech"
+      MOCK_MODE: "false"
+
+volumes:
+  pgdata:
