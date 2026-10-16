@@ -7,8 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "db:init": "tsx scripts/init-db.ts",
-    "test:sync": "tsx scripts/simulate-incoming.ts"
+    "db:init": "tsx scripts/init-db.ts"
   },
   "keywords": [
     "ramazanoglu-tech",

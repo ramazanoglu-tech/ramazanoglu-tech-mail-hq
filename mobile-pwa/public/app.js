@@ -2,14 +2,15 @@
 // RAMAZANOĞLU TECH MAIL HQ - MOBILE PWA CORE APPLICATION JAVASCRIPT
 // =============================================================================
 
-const SUPER_ADMIN_KEY = 'RamazanogluTech2026!Master';
+const SUPER_ADMIN_KEY = 'ramazanoglu_super_secret_key_2026';
+const CURRENT_PORT = window.location.port || '4000';
 
 const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-  ? `${window.location.protocol}//${window.location.hostname}:8765/api`
+  ? `${window.location.protocol}//${window.location.hostname}:${CURRENT_PORT}/api`
   : `${window.location.origin}/api`;
 
 const WS_BASE = (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-  ? `ws://${window.location.hostname}:8765/ws`
+  ? `ws://${window.location.hostname}:${CURRENT_PORT}/ws`
   : `ws${window.location.protocol === 'https:' ? 's' : ''}://${window.location.host}/ws`) + `?key=${SUPER_ADMIN_KEY}`;
 
 // Automatic Zero-Trust Auth Header for all API calls

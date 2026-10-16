@@ -18,12 +18,12 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL || '',
 
   // Super Admin Auth
-  superAdminPassword: process.env.SUPER_ADMIN_PASSWORD || 'RamazanogluTech2026!Master',
+  superAdminPassword: process.env.SUPER_ADMIN_PASSWORD || process.env.ADMIN_TOKEN || 'RamazanogluTech2026!Master',
   jwtSecret: process.env.JWT_SECRET || 'ramazanoglu-tech-cloud-super-admin-jwt-secret-key-32chars-min',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30d',
 
   // Strict Domain Filtering
-  domainFilter: (process.env.DOMAIN_FILTER || '@ramazanoglu.tech').toLowerCase(),
+  domainFilter: (process.env.DOMAIN_FILTER || (process.env.CORPORATE_DOMAIN ? (process.env.CORPORATE_DOMAIN.startsWith('@') ? process.env.CORPORATE_DOMAIN : '@' + process.env.CORPORATE_DOMAIN) : '@ramazanoglu.tech')).toLowerCase(),
 
   // IMAP 7/24 Sync Motor
   imap: {
@@ -31,7 +31,7 @@ export const config = {
     port: parseInt(process.env.IMAP_PORT || '993', 10),
     tls: process.env.IMAP_TLS !== 'false',
     user: process.env.IMAP_USER || '',
-    password: (process.env.IMAP_PASSWORD || '').replace(/\s+/g, ''),
+    password: (process.env.IMAP_PASSWORD || process.env.IMAP_PASS || '').replace(/["']/g, '').replace(/\s+/g, ''),
     pollIntervalMs: parseInt(process.env.IMAP_POLL_INTERVAL_MS || '30000', 10),
     autoReconnect: process.env.IMAP_AUTO_RECONNECT !== 'false',
   },
@@ -42,7 +42,7 @@ export const config = {
     port: parseInt(process.env.SMTP_PORT || '465', 10),
     secure: process.env.SMTP_SECURE !== 'false',
     user: process.env.SMTP_USER || '',
-    password: (process.env.SMTP_PASSWORD || '').replace(/\s+/g, ''),
+    password: (process.env.SMTP_PASSWORD || process.env.SMTP_PASS || '').replace(/["']/g, '').replace(/\s+/g, ''),
   },
 
   // Mock / Dev Simulation
