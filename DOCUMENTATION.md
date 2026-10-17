@@ -21,7 +21,7 @@ Projenin tüm görsel kimliği, [`c:\Users\PC\Desktop\ramazanoglu-web\index.html
 | # | Kullanıcı Talebi (Ne İstedin?) | Mühendislik Çıktısı (Ne Verdim?) | İlgili Dosyalar / Çıktılar |
 |---|---|---|---|
 | **1** | *"çalıştır onu / arayüzümüzü çalıştırır mısın"* | Node.js Cloud Backend arka planda daemon olarak ayağa kaldırıldı, C++20 Qt 6 masaüstü arayüzü derlenip etkileşimli Windows oturumunda başlatıldı. | `cloud-backend/dist/index.js`<br>`desktop-cpp/build/Release/RamazanogluTechMailHQ.exe` |
-| **2** | *"szzb btag yywl gxlg böyle aib google app password yaptım bunu entegre etmemize gerek var mı"* | Gmail TLS IMAP (993) ve SSL SMTP (465) motoru yapılandırıldı. Şifre güvenli `.env` dosyasına kaydedildi, arka planda 7/24 çalışacak IMAP IDLE ve polling mekanizması entegre edildi. | `cloud-backend/.env`<br>`cloud-backend/src/imapSync.ts`<br>`cloud-backend/src/smtpDispatcher.ts` |
+| **2** | *"[uygulama şifresi gizlendi] google app password yaptım bunu entegre etmemize gerek var mı"* | Gmail TLS IMAP (993) ve SSL SMTP (465) motoru yapılandırıldı. Şifre güvenli `.env` dosyasına kaydedildi, arka planda 7/24 çalışacak IMAP IDLE ve polling mekanizması entegre edildi. | `cloud-backend/.env`<br>`cloud-backend/src/imapSync.ts`<br>`cloud-backend/src/smtpDispatcher.ts` |
 | **3** | *"yousefalrmdan@gmail.com / bir iletişim maili oluşturup deneme amaçlı mail attım da oluşmadı / yok ben kendim iletisim@ramazanoglu.tech mailini oluşturdum, ondan attım ama gitmedi"* | Gmail IMAP kutusundaki binlerce mesaj içerisinden `@ramazanoglu.tech` adresine gelen/giden e-postaları izole eden mimari kuruldu. SMTP dispatcher'ın `From: iletisim@ramazanoglu.tech` başlığı ve imza mekanizması canlı test edilerek giden e-posta iletimi HTTP 201 ile doğrulandı. | `cloud-backend/src/imapSync.ts`<br>`cloud-backend/src/smtpDispatcher.ts` |
 | **4** | *"ben böyle liste yaptım, her mailin hem türkçesi lazım hem de ingilizcesi, mesela security ve guvenlik gibi, hepsi böyle olacak, sen bir liste hazırlayabilir misin onay verirsem eklersin"* | 6 ana kategori altında 27 İngilizce + 27 Türkçe olmak üzere tam **54 kurumsal alias** üretildi. Her departmana özel mimari rozet (`[RD]`, `[ARGE]`, `[SEC]`, `[GUV]`) ve kurumsal İsviçre imzası oluşturuldu. | `cloud-backend/src/db.ts` |
 | **5** | *"tamam canım ramazanoglu-web/index.html burada kullanılan tasarım dilini kullanarak ta hazır şablonlar üretmeni istiyorum ve tüm bu mailleri oluşturmanı istiyorum, ayrıca nur@ramazanoglu.tech maili de oluştur bir tane ortağım için"* | Web sitesi incelendi; `#FBFBF9`, `#111111`, `#D9381E` renk paletiyle **6 adet profesyonel e-posta şablonu** hazırlandı. `yusuf@` ve `nur@` kurucu/ortak kimlikleri sisteme eklendi. Şablonlar C++, PWA ve Masaüstündeki bağımsız HTML dosyalarına entegre edildi. | `cloud-backend/src/templates.ts`<br>`desktop-cpp/src/ComposeDialog.cpp`<br>`email-templates/*.html`<br>`Masaüstü: Ramazanoglu_E-Posta_Sablonlari.lnk` |
@@ -37,7 +37,7 @@ Projenin tüm görsel kimliği, [`c:\Users\PC\Desktop\ramazanoglu-web\index.html
 flowchart TD
     subgraph CLOUD_INFRA["RAMAZANOĞLU TECH BULUT ALTYAPISI"]
         CF["Cloudflare DNS & MX (@ramazanoglu.tech)"]
-        GMAIL["Google Workspace / Gmail Altyapısı (yousefalrmdan@gmail.com)"]
+        GMAIL["Gmail Altyapısı (yousefalrmdan@gmail.com)"]
         CF -->|E-Posta Yönlendirme| GMAIL
     end
 
@@ -84,7 +84,7 @@ Sistemin internete ve ortakların kullanımına açılabilmesi için uçtan uca 
   {"error":"Unauthorized: Access Denied. Valid Super Admin token or API key required."}
 
   # Doğrulanmış istek -> 200 OK
-  curl.exe -i -H "X-Super-Admin-Key: RamazanogluTech2026!Master" http://localhost:8765/api/emails
+  curl.exe -i -H "X-Super-Admin-Key: <SUPER_ADMIN_PASSWORD>" http://localhost:8765/api/emails
   HTTP/1.1 200 OK
   ```
 

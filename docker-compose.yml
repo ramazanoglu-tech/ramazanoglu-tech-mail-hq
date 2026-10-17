@@ -1,45 +1,57 @@
-version: '3.8'
+# =============================================================================
+# RAMAZANOĞLU TECH MAIL HQ - DOCKER COMPOSE
+# All secrets come from a .env file next to this file (NEVER commit it):
+#   cp cloud-backend/.env.example .env   and fill in real values
+# =============================================================================
 
 services:
-  # Cloud PostgreSQL (Neon / Supabase local equivalent for testing)
   postgres:
     image: postgres:16-alpine
     container_name: ramazanoglu_postgres
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: RamazanogluTech2026!Db
-      POSTGRES_DB: ramazanoglu_mail_db
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-mailhq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-ramazanoglu_mail_db}
+    # No published port: only the backend container can reach the database.
+    # For local debugging use:  docker compose exec postgres psql -U mailhq
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./cloud-backend/schema.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./cloud-backend/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mailhq} -d ${POSTGRES_DB:-ramazanoglu_mail_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # 7/24 IMAP/SMTP Cloud Sync Engine & Super Admin REST/WebSocket API
   backend:
     build:
-      context: ./cloud-backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: cloud-backend/Dockerfile
     container_name: ramazanoglu_cloud_backend
-    restart: always
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
+    # Bound to localhost on purpose: expose it to the internet only through an HTTPS
+    # front (Cloudflare Tunnel / Caddy / nginx) that proxies to 127.0.0.1:8765.
     ports:
-      - "8765:8765"
+      - "127.0.0.1:8765:8765"
     environment:
+      NODE_ENV: production
       PORT: 8765
       HOST: "0.0.0.0"
-      DATABASE_URL: "postgresql://postgres:RamazanogluTech2026!Db@postgres:5432/ramazanoglu_mail_db"
-      SUPER_ADMIN_PASSWORD: "RamazanogluTech2026!Master"
-      JWT_SECRET: "ramazanoglu-tech-cloud-super-admin-jwt-secret-key-32chars-min"
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mailhq}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ramazanoglu_mail_db}
+      DATABASE_SSL: "false"   # internal docker network, no TLS between the containers
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:?Set SUPER_ADMIN_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       DOMAIN_FILTER: "@ramazanoglu.tech"
+      IMAP_USER: ${IMAP_USER:-}
+      IMAP_PASSWORD: ${IMAP_PASSWORD:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       MOCK_MODE: "false"
 
 volumes:

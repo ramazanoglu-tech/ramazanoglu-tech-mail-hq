@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ramazanoğlu Tech // Mail HQ Super Admin</title>
+  <title>Ramazanoğlu Tech // Mail HQ</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <meta name="theme-color" content="#111111">
@@ -18,13 +18,22 @@
   <header class="app-header">
     <div class="brand-block">
       <span class="brand-title">RAMAZANOĞLU TECH</span>
-      <span class="brand-sub">MAIL HQ // SUPER ADMIN</span>
+      <span class="brand-sub">MAIL HQ</span>
     </div>
     <div class="header-actions">
       <div id="statusPill" class="status-pill">BULUT: BAĞLANIYOR...</div>
       <button id="btnOpenCompose" class="btn-primary">+ YENİ</button>
     </div>
   </header>
+
+  <!-- SIGNED-IN USER -->
+  <div class="user-strip" id="userStrip" hidden>
+    <span class="user-chip" id="userChip"></span>
+    <span class="user-strip-actions">
+      <a id="adminLink" class="btn-icon" href="./admin.html">HESAP</a>
+      <button id="btnLogout" class="btn-icon" type="button">ÇIKIŞ</button>
+    </span>
+  </div>
 
   <!-- HORIZONTAL ALIAS SCROLLER -->
   <nav class="alias-scroller" id="aliasScroller">
@@ -43,7 +52,7 @@
     </div>
     <div style="display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-secondary);">
       <span id="emailCountLabel">Yükleniyor...</span>
-      <button id="btnSimulate" class="btn-icon" style="font-size: 10px; padding: 3px 6px;">[SİMÜLE ET: TEST MAİLİ]</button>
+      <button id="btnSimulate" class="btn-icon" style="font-size: 10px; padding: 3px 6px;" hidden>[SİMÜLE ET: TEST MAİLİ]</button>
     </div>
   </section>
 
@@ -157,6 +166,7 @@
   </div>
 
   <!-- SCRIPT -->
+  <script src="./auth.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

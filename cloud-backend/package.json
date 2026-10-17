@@ -1,13 +1,14 @@
 {
   "name": "ramazanoglu-tech-mail-cloud-backend",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "7/24 Cloud IMAP/SMTP Sync Engine & Super Admin REST/WebSocket API for @ramazanoglu.tech",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "db:init": "tsx scripts/init-db.ts"
+    "db:init": "tsx scripts/init-db.ts",
+    "test": "node --test \"tests/*.test.mjs\""
   },
   "keywords": [
     "ramazanoglu-tech",

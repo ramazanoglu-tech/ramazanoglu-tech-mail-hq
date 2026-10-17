@@ -2,6 +2,7 @@
 // RAMAZANOĞLU TECH MAIL HQ - OUTBOUND ALIAS DISPATCHER (SMTP ENGINE)
 // =============================================================================
 
+import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { config } from './config.js';
 import { createAlias, getAliases, saveEmail } from './db.js';
@@ -61,11 +62,16 @@ export async function sendEmailAsAlias(payload: SendEmailPayload): Promise<Email
   const cleanCc = sanitizeRecipientList(payload.cc, 'Cc');
   const cleanBcc = sanitizeRecipientList(payload.bcc, 'Bcc');
 
+  // Reply headers must be a single message-id token: no whitespace/CRLF/angle injection
+  const cleanInReplyTo = payload.in_reply_to && /^<[^<>\s]{1,512}>$/.test(payload.in_reply_to.trim())
+    ? payload.in_reply_to.trim()
+    : undefined;
+
   const aliases = await getAliases();
   let alias = aliases.find((a) => a.email.toLowerCase() === fromAliasEmail);
 
   if (!alias) {
-    if (fromAliasEmail.endsWith('@ramazanoglu.tech')) {
+    if (/^[a-z0-9._-]{1,64}@ramazanoglu\.tech$/.test(fromAliasEmail)) {
       const prefix = fromAliasEmail.split('@')[0];
       const badge = `[${prefix.toUpperCase()}]`;
       const displayName = `Ramazanoğlu Tech ${prefix.charAt(0).toUpperCase() + prefix.slice(1)}`;
@@ -94,14 +100,16 @@ export async function sendEmailAsAlias(payload: SendEmailPayload): Promise<Email
   }
 
   const plainText = payload.body_text || finalHtml.replace(/<[^>]*>/g, '');
-  const messageId = `<out-${Date.now()}.${Math.random().toString(36).substring(2, 9)}@ramazanoglu.tech>`;
-  const threadId = payload.thread_id || payload.in_reply_to || messageId;
+  const messageId = `<out-${Date.now()}.${crypto.randomBytes(6).toString('hex')}@ramazanoglu.tech>`;
+  const threadId = payload.thread_id || cleanInReplyTo || messageId;
+  // Display name goes into a quoted header: strip CR/LF, quotes and backslashes
+  const safeDisplayName = alias.display_name.replace(/[\r\n"\\]/g, ' ').trim();
 
-  // Attempt real SMTP dispatch if configured
+  // Real SMTP dispatch. A failure must surface to the caller: never record a mail as "sent" when it was not.
   if (transporter && !config.mockMode) {
     try {
       const mailOptions: nodemailer.SendMailOptions = {
-        from: `"${alias.display_name}" <${alias.email}>`,
+        from: `"${safeDisplayName}" <${alias.email}>`,
         sender: config.smtp.user,
         replyTo: alias.email,
         to: cleanTo,
@@ -111,8 +119,8 @@ export async function sendEmailAsAlias(payload: SendEmailPayload): Promise<Email
         text: plainText,
         html: finalHtml,
         messageId: messageId,
-        inReplyTo: payload.in_reply_to,
-        references: payload.in_reply_to ? [payload.in_reply_to] : undefined,
+        inReplyTo: cleanInReplyTo,
+        references: cleanInReplyTo ? [cleanInReplyTo] : undefined,
         headers: {
           'X-Ramazanoglu-Identity': alias.email,
           'X-Ramazanoglu-Badge': alias.department_badge,
@@ -122,10 +130,14 @@ export async function sendEmailAsAlias(payload: SendEmailPayload): Promise<Email
       const info = await transporter.sendMail(mailOptions);
       console.log(`[SMTP] Sent message ${info.messageId} successfully from ${alias.email}`);
     } catch (err) {
-      console.error('[SMTP] Real send failed, recording fallback dispatch:', err);
+      console.error('[SMTP] Real send failed:', err);
+      const reason = err instanceof Error ? err.message : String(err);
+      throw new Error(`SMTP delivery failed: ${reason}`);
     }
+  } else if (config.mockMode) {
+    console.log(`[SMTP Mock] Outbound message simulated from ${alias.display_name} <${alias.email}> to ${cleanTo.join(', ')}`);
   } else {
-    console.log(`[SMTP Mock] Outbound message dispatched from ${alias.display_name} <${alias.email}> to ${cleanTo.join(', ')}`);
+    throw new Error('SMTP delivery failed: SMTP is not configured (set SMTP_USER and SMTP_PASSWORD).');
   }
 
   // Save into Cloud Database with OUTBOUND direction
@@ -133,7 +145,7 @@ export async function sendEmailAsAlias(payload: SendEmailPayload): Promise<Email
     message_id: messageId,
     thread_id: threadId,
     alias_target: alias.email,
-    from_name: alias.display_name,
+    from_name: safeDisplayName,
     from_address: alias.email,
     to_addresses: cleanTo,
     cc_addresses: cleanCc,
@@ -147,7 +159,7 @@ export async function sendEmailAsAlias(payload: SendEmailPayload): Promise<Email
     direction: 'OUTBOUND',
     received_at: new Date().toISOString(),
     raw_headers: {
-      'From': `"${alias.display_name}" <${alias.email}>`,
+      'From': `"${safeDisplayName}" <${alias.email}>`,
       'To': cleanTo.join(', '),
       'Subject': cleanSubject,
       'Message-ID': messageId,

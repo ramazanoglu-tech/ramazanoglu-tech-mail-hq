@@ -2,12 +2,17 @@
 // RAMAZANOĞLU TECH MAIL HQ - SERVICE WORKER
 // =============================================================================
 
-const CACHE_NAME = 'rt-mail-hq-v1.0';
+// Bumped on purpose: v1.0 caches contain the old app.js that embedded the admin key
+const CACHE_NAME = 'rt-mail-hq-v1.2';
 const STATIC_ASSETS = [
   './',
   './index.html',
   './app.css',
   './app.js',
+  './auth.js',
+  './admin.html',
+  './admin.css',
+  './admin.js',
   './manifest.json',
   './icon.svg',
 ];
@@ -44,13 +49,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Network-first so a new deploy (or a security fix) is never masked by a stale cached app shell
+  if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request);
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (response && response.ok && new URL(event.request.url).origin === self.location.origin) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
 

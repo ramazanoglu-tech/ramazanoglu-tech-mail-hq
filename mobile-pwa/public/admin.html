@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yönetim // Ramazanoğlu Tech Mail HQ</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <meta name="theme-color" content="#111111">
+  <link rel="stylesheet" href="./app.css">
+  <link rel="stylesheet" href="./admin.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="brand-block">
+      <span class="brand-title">RAMAZANOĞLU TECH<span class="brand-dot"></span></span>
+      <span class="brand-sub" id="brandSub">MAIL HQ // YÖNETİM</span>
+    </div>
+    <div class="header-actions">
+      <a class="btn-icon" href="./index.html">&larr; POSTA KUTUSU</a>
+      <button class="btn-icon" id="btnLogout" type="button">ÇIKIŞ</button>
+    </div>
+  </header>
+
+  <main class="admin-shell">
+    <div class="admin-identity" id="adminIdentity"></div>
+    <nav class="admin-tabs" id="adminTabs" role="tablist" aria-label="Yönetim bölümleri"></nav>
+    <section id="tabContent" class="tab-content" role="tabpanel"></section>
+  </main>
+
+  <!-- USER CREATE / EDIT -->
+  <div class="modal-overlay" id="userModal" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+    <div class="modal-window">
+      <div class="modal-header">
+        <span class="modal-title" id="userModalTitle">KULLANICI</span>
+        <button class="btn-icon" type="button" data-action="close-modal" aria-label="Kapat">&times;</button>
+      </div>
+      <form id="userForm" novalidate>
+        <div class="modal-body">
+          <div class="input-group">
+            <label class="input-label" for="fName">AD SOYAD</label>
+            <input id="fName" class="search-input" type="text" maxlength="100" autocomplete="off" required>
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="fEmail">GİRİŞ E-POSTASI</label>
+            <input id="fEmail" class="search-input" type="email" autocomplete="off" required>
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="fRole">ROL</label>
+            <select id="fRole" class="select-input">
+              <option value="member">ÜYE: yalnızca atanan kimliklerin postası</option>
+              <option value="admin">YÖNETİCİ: üyeleri yönetir</option>
+              <option value="owner">SAHİP: her şey</option>
+            </select>
+            <span class="field-hint" id="roleHint"></span>
+          </div>
+          <div class="input-group" id="accessGroup">
+            <span class="input-label" id="accessLabel">KİMLİK ERİŞİMİ (HANGİ ADRESLERİN POSTASINI GÖRÜR / OLARAK GÖNDERİR)</span>
+            <label class="check-row check-all"><input type="checkbox" id="fAll"> <span>Tüm kimlikler (şimdiki ve gelecekteki)</span></label>
+            <input id="fAliasFilter" class="search-input" type="search" placeholder="Kimlik ara..." aria-label="Kimlik ara" autocomplete="off">
+            <div class="check-list" id="aliasChecks" aria-labelledby="accessLabel"></div>
+          </div>
+          <label class="check-row" id="activeRow"><input type="checkbox" id="fActive" checked> <span>Hesap aktif (kapatılırsa oturumları hemen sonlanır)</span></label>
+          <div class="form-error" id="userFormError" role="alert"></div>
+        </div>
+        <div class="modal-footer split">
+          <button type="button" class="btn-danger" id="btnResetPw" data-action="reset-password" hidden>PAROLAYI SIFIRLA</button>
+          <span class="footer-right">
+            <button type="button" class="btn-secondary" data-action="close-modal">İPTAL</button>
+            <button type="submit" class="btn-primary" id="btnSaveUser">KAYDET</button>
+          </span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ONE-TIME TEMPORARY PASSWORD -->
+  <div class="modal-overlay" id="secretModal" role="dialog" aria-modal="true" aria-labelledby="secretTitle">
+    <div class="modal-window narrow">
+      <div class="modal-header">
+        <span class="modal-title" id="secretTitle">GEÇİCİ PAROLA</span>
+      </div>
+      <div class="modal-body">
+        <p class="secret-who" id="secretWho"></p>
+        <div class="secret-box" id="secretValue" tabindex="0"></div>
+        <p class="secret-warn">Bu parola <strong>yalnızca şimdi</strong> gösterilir ve sunucuda düz metin olarak saklanmaz. Kullanıcıya güvenli bir kanaldan iletin. İlk girişte kendi parolasını belirlemek zorunda kalacak.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="btnCopySecret">KOPYALA</button>
+        <button type="button" class="btn-primary" data-action="close-secret">TAMAM, İLETTİM</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="./auth.js"></script>
+  <script src="./admin.js"></script>
+</body>
+</html>

@@ -30,9 +30,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     resize(1440, 900);
     setMinimumSize(1100, 700);
 
-    QString baseUrl = "http://localhost:4000";
-    QString wsUrl = "ws://localhost:4000/ws";
-    QString adminKey = "ramazanoglu_super_secret_key_2026";
+    QString baseUrl = "http://localhost:8765";
+    QString wsUrl = "ws://localhost:8765/ws";
+    QString adminKey;  // must come from config.json (super_admin_key)
 
     QString configPath = QDir(QCoreApplication::applicationDirPath()).filePath("config.json");
     if (QFile::exists(configPath)) {

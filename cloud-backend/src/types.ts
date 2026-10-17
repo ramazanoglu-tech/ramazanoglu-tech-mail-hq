@@ -73,3 +73,39 @@ export interface WebSocketMessage {
   payload: unknown;
   timestamp: string;
 }
+
+// ---------------------------------------------------------------------------
+// User accounts
+// ---------------------------------------------------------------------------
+
+export type UserRole = 'owner' | 'admin' | 'member';
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  password_hash: string;
+  role: UserRole;
+  /** Mail identities this user may read/send as. '*' = every identity (owner always has it). */
+  alias_access: string[];
+  is_active: boolean;
+  must_change_password: boolean;
+  /** Bumped on password change / disable so every previously issued JWT stops working. */
+  token_version: number;
+  last_login_at: string | null;
+  created_at: string;
+}
+
+/** What is safe to send to a browser. */
+export type PublicUser = Omit<User, 'password_hash' | 'token_version'>;
+
+export interface AuditEntry {
+  id: string;
+  user_id: string | null;
+  user_email: string;
+  action: string;
+  target: string | null;
+  ip: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+}

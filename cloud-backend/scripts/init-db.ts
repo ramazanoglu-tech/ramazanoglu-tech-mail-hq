@@ -21,7 +21,7 @@ async function runMigration() {
   console.log('[MIGRATION] Connecting to PostgreSQL database...');
   const pool = new Pool({
     connectionString: dbUrl,
-    ssl: dbUrl.includes('localhost') ? false : { rejectUnauthorized: false },
+    ssl: dbUrl.includes('localhost') ? false : { rejectUnauthorized: true },
   });
 
   try {

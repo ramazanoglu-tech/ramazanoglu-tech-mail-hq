@@ -4,7 +4,6 @@
 [![C++](https://img.shields.io/badge/Desktop-C%2B%2B20%20%2F%20Qt%206.6.3-00599C.svg?style=flat-square&logo=c%2B%2B)](desktop-cpp/)
 [![Backend](https://img.shields.io/badge/Backend-Node.js%2024%20%2F%20TypeScript-339933.svg?style=flat-square&logo=node.js)](cloud-backend/)
 [![PWA](https://img.shields.io/badge/Mobile-PWA%20%2F%20Vanilla%20JS-F7DF1E.svg?style=flat-square&logo=javascript)](mobile-pwa/)
-[![Installer](https://img.shields.io/badge/Installer-.NET%2010%20WinForms-512BD4.svg?style=flat-square&logo=dotnet)](installer/)
 [![Security](https://img.shields.io/badge/Zero--Trust-Enforced-red.svg?style=flat-square)](DOCUMENTATION.md)
 
 > **Ramazanoğlu Technologies Inc.** kurumsal ortakları (Yusuf & Nur) ve mühendislik kadrosu için geliştirilmiş; yerel veritabanı şişmesi barındırmayan (**Zero-Local Dependency**), 7/24 Gmail TLS IMAP ve SSL SMTP motoruyla senkronize (**100% Cloud-Synced**) kurumsal e-posta yönetim merkezi.
@@ -37,12 +36,6 @@ ramazanoglu-tech-mail-hq/
 │   ├── public/index.html  # Mobil PWA Arayüzü
 │   ├── public/app.js      # Canlı WebSocket + REST Senkronizasyonu
 │   └── public/sw.js       # Çevrimdışı Önbellek ve Service Worker
-│
-├── installer/             # Bağımsız Windows Kurulum Programı (.NET 10)
-│   ├── InstallerForm.cs   # 6 Adımlı İsviçre Tarzı Kurulum Sihirbazı
-│   └── SetupWizard.csproj # Self-Contained Tek Dosyalık Setup Derleyici
-│
-└── email-templates/       # Bağımsız Kullanıma Hazır 6 Adet HTML Şablonu
 ```
 
 ---
@@ -107,3 +100,30 @@ Tüm mimari kararlar, yapılan denetimler ve adım adım değişiklikler için [
 
 **© 2026 Ramazanoğlu Technologies Inc. Tüm hakları saklıdır.**  
 *Swiss-Style Architectural Minimalism & Zero-Local Dependency Engine*
+
+---
+
+## Kurulum ve Güvenlik Notları (Ekim 2026 sertleştirmesi)
+
+**Sunucu artık gerçek sırlar olmadan açılmaz.** Kaynak kodda hiçbir parola/anahtar yoktur.
+
+1. `cp cloud-backend/.env.example .env` (docker için kök dizine; doğrudan node için `cloud-backend/.env`)
+2. Sırları üretin: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`
+   - `SUPER_ADMIN_PASSWORD` (en az 16), `JWT_SECRET` (en az 32), `POSTGRES_PASSWORD`
+   - `IMAP_PASSWORD` / `SMTP_PASSWORD`: **yeni** Google uygulama şifresi
+3. `docker compose up -d --build` (Postgres dışarı açılmaz, backend sadece `127.0.0.1:8765`)
+4. İnternete açmak için önüne HTTPS koyun (Cloudflare Tunnel / Caddy / nginx) ve `TRUST_PROXY=1` yapın.
+
+**İstemciler:**
+- Mobil PWA: e-posta + parola ile kişisel hesap girişi, 12 saatlik JWT alır (sessionStorage).
+
+**Kullanıcı hesapları ve yönetim paneli (`/admin.html`):**
+- İlk açılışta `OWNER_EMAIL` için sahip hesabı oluşur; ilk parola `SUPER_ADMIN_PASSWORD`'dür ve ilk girişte değiştirmek zorunludur.
+- Roller: **sahip** (her şey), **yönetici** (yalnızca üyeleri yönetir, sahip olmadığı kimlikleri veremez), **üye** (sadece kendisine atanan kimliklerin postasını görür ve o adresler adına gönderir; silemez).
+- Panelden kullanıcı oluşturma/düzenleme/pasifleştirme, kimlik (alias) erişimi atama, parola sıfırlama (geçici parola yalnızca bir kez gösterilir), kimlik ekleme ve denetim kaydı bulunur.
+- Parola değişimi, sıfırlama, pasifleştirme ve rol değişimi eski oturumları anında düşürür. 5 hatalı girişte hesap 15 dk kilitlenir.
+- Masaüstü (Qt) istemci hâlâ eski `X-Super-Admin-Key` ile çalışır (`LEGACY_API_KEY_ENABLED=true`). İstemci güncellenince `false` yapın.
+- Testler: `cd cloud-backend && npm run build && npm test`.
+- Masaüstü (Qt) ve kurulum sihirbazı: anahtar artık varsayılan olarak boştur; `config.json` içindeki `super_admin_key` ve kurulum ekranındaki alan elle doldurulur.
+
+**Geliştirme:** `MOCK_MODE=true` sahte verili, kalıcı olmayan demo çalıştırır; `/api/dev/*` yalnızca bu modda ve `NODE_ENV!=production` iken vardır.

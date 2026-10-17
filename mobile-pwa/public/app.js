@@ -2,25 +2,12 @@
 // RAMAZANOĞLU TECH MAIL HQ - MOBILE PWA CORE APPLICATION JAVASCRIPT
 // =============================================================================
 
-const SUPER_ADMIN_KEY = 'ramazanoglu_super_secret_key_2026';
-const CURRENT_PORT = window.location.port || '4000';
-
-const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-  ? `${window.location.protocol}//${window.location.hostname}:${CURRENT_PORT}/api`
-  : `${window.location.origin}/api`;
-
-const WS_BASE = (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-  ? `ws://${window.location.hostname}:${CURRENT_PORT}/ws`
-  : `ws${window.location.protocol === 'https:' ? 's' : ''}://${window.location.host}/ws`) + `?key=${SUPER_ADMIN_KEY}`;
-
-// Automatic Zero-Trust Auth Header for all API calls
-const nativeFetch = window.fetch;
-window.fetch = function (url, options = {}) {
-  const opts = options || {};
-  const headers = new Headers(opts.headers || {});
-  headers.set('X-Super-Admin-Key', SUPER_ADMIN_KEY);
-  return nativeFetch(url, { ...opts, headers });
-};
+// Sign-in, token storage and the authenticated fetch wrapper live in auth.js (window.RT).
+// No credential is embedded in this file: every person signs in with their own account.
+const API_BASE = RT.API_BASE;
+const WS_URL = RT.WS_URL;
+let currentUser = null;
+let features = {};
 
 // State
 let aliases = [];
@@ -79,6 +66,12 @@ let availableTemplates = [];
 // 1. Initialize PWA
 async function initApp() {
   registerServiceWorker();
+
+  // Shows the sign-in / forced password-change screen and never resolves until that is done
+  const me = await RT.ensureSession();
+  currentUser = me.user;
+  features = me.features || {};
+  decorateUserStrip();
   requestNotificationPermission();
 
   await loadAliases();
@@ -86,6 +79,20 @@ async function initApp() {
   await loadEmails();
   initWebSocket();
   setupEventListeners();
+}
+
+const ROLE_LABEL = { owner: 'SAHİP', admin: 'YÖNETİCİ', member: 'ÜYE' };
+
+function decorateUserStrip() {
+  const isStaff = currentUser.role === 'owner' || currentUser.role === 'admin';
+  document.getElementById('userChip').innerHTML =
+    `<strong>${escapeHtml(currentUser.name)}</strong> · ${ROLE_LABEL[currentUser.role] || ''}`;
+  document.getElementById('adminLink').textContent = isStaff ? 'YÖNETİM' : 'HESAP';
+  document.getElementById('btnLogout').addEventListener('click', RT.logout);
+  document.getElementById('userStrip').hidden = false;
+  btnSimulate.hidden = !features.dev_simulate;
+  // Members cannot delete mail (the server enforces it too)
+  btnDeleteEmail.hidden = !isStaff;
 }
 
 async function loadTemplates() {
@@ -125,7 +132,8 @@ function requestNotificationPermission() {
 // 3. WebSocket Real-time Live Sync
 function initWebSocket() {
   try {
-    ws = new WebSocket(WS_BASE);
+    // The browser WebSocket API cannot set headers, so the short-lived JWT travels as a query parameter
+    ws = new WebSocket(`${WS_URL}?token=${encodeURIComponent(RT.getToken())}`);
 
     ws.onopen = () => {
       console.log('[WS] Connected to Ramazanoğlu Tech Cloud Live Stream');
@@ -138,7 +146,7 @@ function initWebSocket() {
       console.warn('[WS] Live Stream closed. Scheduling auto-reconnect...');
       statusPill.textContent = '○ BULUT: BAĞLANTI KOPTU';
       statusPill.classList.remove('live');
-      reconnectTimer = setTimeout(initWebSocket, 4000);
+      scheduleReconnect();
     };
 
     ws.onerror = (err) => {
@@ -162,6 +170,21 @@ function initWebSocket() {
   } catch (err) {
     console.error('[WS Connection Error]:', err);
   }
+}
+
+// Reconnect only while the session is still valid: a disabled account or an ended session
+// gets the sign-in screen (via the fetch wrapper) instead of a reconnect loop.
+function scheduleReconnect() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`);
+      if (res.ok) initWebSocket();
+      else if (res.status !== 401 && res.status !== 403) scheduleReconnect();
+    } catch {
+      scheduleReconnect();
+    }
+  }, 4000);
 }
 
 function handleIncomingRealtimeEmail(newEmail) {
@@ -195,7 +218,7 @@ function renderAliasScroller() {
 
   const masterBtn = document.createElement('button');
   masterBtn.className = `alias-chip ${currentAliasFilter === 'all' ? 'active' : ''}`;
-  masterBtn.textContent = 'ALL TRAFFIC [MASTER]';
+  masterBtn.textContent = currentUser && currentUser.role === 'owner' ? 'ALL TRAFFIC [MASTER]' : 'TÜM ERİŞİLEBİLİR';
   masterBtn.dataset.alias = 'all';
   masterBtn.onclick = () => selectAliasFilter('all');
   aliasScroller.appendChild(masterBtn);
@@ -220,7 +243,7 @@ function selectAliasFilter(alias) {
 
 function renderIdentitySelects() {
   const optionsHtml = aliases
-    .map((a) => `<option value="${a.email}">${a.department_badge} &lt;${a.email}&gt; — ${a.display_name}</option>`)
+    .map((a) => `<option value="${escapeHtml(a.email)}">${escapeHtml(a.department_badge)} &lt;${escapeHtml(a.email)}&gt; — ${escapeHtml(a.display_name)}</option>`)
     .join('');
 
   replyFromSelect.innerHTML = optionsHtml;
@@ -232,7 +255,12 @@ function updateComposeSignaturePreview() {
   const selectedEmailAddr = composeFromSelect.value;
   const aliasObj = aliases.find((a) => a.email.toLowerCase() === selectedEmailAddr.toLowerCase());
   if (aliasObj && aliasObj.signature_html) {
-    composeSignaturePreview.innerHTML = aliasObj.signature_html;
+    composeSignaturePreview.textContent = '';
+    const sigFrame = document.createElement('iframe');
+    sigFrame.setAttribute('sandbox', '');
+    sigFrame.style.cssText = 'width:100%;height:140px;border:0;background:#fff;';
+    sigFrame.srcdoc = aliasObj.signature_html;
+    composeSignaturePreview.appendChild(sigFrame);
   } else {
     composeSignaturePreview.innerHTML = '<em>(İmza tanımlanmamış)</em>';
   }
@@ -282,10 +310,10 @@ function renderEmailList(items, total) {
       const isUnread = !item.is_read;
 
       return `
-        <li class="email-item ${isUnread ? 'unread' : ''}" onclick="openEmailDetail('${item.id}')">
+        <li class="email-item ${isUnread ? 'unread' : ''}" data-id="${escapeHtml(String(item.id))}">
           <div class="email-meta-row">
             <div>
-              <span class="badge-tag">${badge}</span>
+              <span class="badge-tag">${escapeHtml(badge)}</span>
               <span class="sender-name">${escapeHtml(item.from_name || item.from_address)}</span>
             </div>
             <span class="time-stamp">${dateStr}</span>
@@ -296,6 +324,11 @@ function renderEmailList(items, total) {
       `;
     })
     .join('');
+
+  // CSP forbids inline handlers: bind clicks here
+  emailList.querySelectorAll('.email-item').forEach((li) => {
+    li.addEventListener('click', () => window.openEmailDetail(li.dataset.id));
+  });
 }
 
 // 6. Email Reading & Quick Reply
@@ -318,12 +351,17 @@ window.openEmailDetail = function (emailId) {
   btnToggleStar.textContent = item.is_starred ? '★ YILDIZLI' : '☆ YILDIZLA';
   btnToggleRead.textContent = item.is_read ? 'OKUNMADI YAP' : 'OKUNDU İŞARETLE';
 
-  // Body Content
-  if (item.body_html) {
-    detailBodyContent.innerHTML = item.body_html;
-  } else {
-    detailBodyContent.innerHTML = `<pre style="font-family: var(--font-ui); white-space: pre-wrap;">${escapeHtml(item.body_text || '')}</pre>`;
-  }
+  // Body Content. Received HTML is attacker-controlled: render it in a fully sandboxed iframe
+  // (no scripts, no same-origin access, no forms/popups) so it can never touch the admin session.
+  detailBodyContent.textContent = '';
+  const frame = document.createElement('iframe');
+  frame.setAttribute('sandbox', '');
+  frame.setAttribute('referrerpolicy', 'no-referrer');
+  frame.style.cssText = 'width:100%;min-height:320px;border:0;background:#fff;';
+  frame.srcdoc = item.body_html
+    ? `<base target="_blank"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">${item.body_html}`
+    : `<pre style="font-family:sans-serif;white-space:pre-wrap;">${escapeHtml(item.body_text || '')}</pre>`;
+  detailBodyContent.appendChild(frame);
 
   // Smart Identity Selector: Auto-select target alias in quick reply
   replyFromSelect.value = item.alias_target;
@@ -534,7 +572,7 @@ function setupEventListeners() {
     }
   });
 
-  // Dev simulation
+  // Dev simulation: the endpoint only exists when the server runs with MOCK_MODE=true (404 otherwise)
   btnSimulate.addEventListener('click', async () => {
     const target = currentAliasFilter === 'all' ? 'info@ramazanoglu.tech' : currentAliasFilter;
     try {
