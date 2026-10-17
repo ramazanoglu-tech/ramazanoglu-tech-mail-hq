@@ -46,6 +46,9 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-mailhq}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ramazanoglu_mail_db}
       DATABASE_SSL: "false"   # internal docker network, no TLS between the containers
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:?Set SUPER_ADMIN_PASSWORD in .env}
+      OWNER_EMAIL: ${OWNER_EMAIL:-yusuf@ramazanoglu.tech}
+      OWNER_NAME: ${OWNER_NAME:-Yusuf Ramazanoğlu}
+      LEGACY_API_KEY_ENABLED: ${LEGACY_API_KEY_ENABLED:-true}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       DOMAIN_FILTER: "@ramazanoglu.tech"
       IMAP_USER: ${IMAP_USER:-}
@@ -53,6 +56,20 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       MOCK_MODE: "false"
+
+  # Optional HTTPS front: docker compose --profile tunnel up -d
+  # Needs CLOUDFLARE_TUNNEL_TOKEN in .env (Cloudflare Zero Trust > Networks > Tunnels).
+  # In the tunnel's Public Hostname set the service to  http://backend:8765
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: ramazanoglu_tunnel
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - backend
 
 volumes:
   pgdata:
