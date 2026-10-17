@@ -2,98 +2,12 @@
 // RAMAZANOĞLU TECH MAIL HQ - MOBILE PWA CORE APPLICATION JAVASCRIPT
 // =============================================================================
 
-// No credential lives in this file. The user signs in with the super admin password,
-// the server returns a short-lived JWT, and it is kept in sessionStorage only (gone when the tab closes).
-const TOKEN_STORAGE_KEY = 'rt_mailhq_token';
-
-const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-  ? `${window.location.protocol}//${window.location.hostname}:8765/api`
-  : `${window.location.origin}/api`;
-
-const WS_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-  ? `ws://${window.location.hostname}:8765/ws`
-  : `ws${window.location.protocol === 'https:' ? 's' : ''}://${window.location.host}/ws`;
-
-function getToken() {
-  try {
-    return sessionStorage.getItem(TOKEN_STORAGE_KEY) || '';
-  } catch {
-    return '';
-  }
-}
-
-function setToken(token) {
-  try {
-    if (token) sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
-    else sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-  } catch {
-    /* storage unavailable (private mode): session simply will not persist */
-  }
-}
-
-function logout() {
-  setToken('');
-  window.location.reload();
-}
-
-// Attach the Bearer token to API calls; an expired/invalid token sends the user back to the login screen
-const nativeFetch = window.fetch;
-window.fetch = async function (url, options = {}) {
-  const opts = options || {};
-  const headers = new Headers(opts.headers || {});
-  const token = getToken();
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  const res = await nativeFetch(url, { ...opts, headers });
-  if (res.status === 401 && String(url).startsWith(API_BASE) && !String(url).includes('/auth/login')) {
-    setToken('');
-    showLogin('Oturum süresi doldu. Lütfen tekrar giriş yapın.');
-  }
-  return res;
-};
-
-// Login overlay (built in JS so no markup/inline-script is needed)
-function showLogin(message) {
-  if (document.getElementById('loginOverlay')) return;
-  const overlay = document.createElement('div');
-  overlay.id = 'loginOverlay';
-  overlay.style.cssText =
-    'position:fixed;inset:0;z-index:9999;background:#FBFBF9;display:flex;align-items:center;justify-content:center;padding:16px;';
-  overlay.innerHTML = `
-    <form id="loginForm" style="width:100%;max-width:360px;border:1px solid #E2E2DF;padding:24px;background:#fff;font-family:var(--font-ui, Inter, sans-serif);">
-      <div style="font-family:var(--font-mono, monospace);font-size:11px;letter-spacing:.08em;margin-bottom:16px;">RAMAZANOĞLU TECH // MAIL HQ <span style="display:inline-block;width:6px;height:6px;background:#D9381E;margin-left:4px;"></span></div>
-      <label for="loginPassword" style="display:block;font-size:12px;margin-bottom:6px;">Yönetici parolası</label>
-      <input id="loginPassword" type="password" autocomplete="current-password" required
-        style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #111;border-radius:0;font-size:16px;">
-      <div id="loginError" role="alert" style="color:#D9381E;font-size:12px;min-height:18px;margin:8px 0;"></div>
-      <button type="submit" style="width:100%;padding:10px;background:#111;color:#fff;border:0;border-radius:0;font-family:var(--font-mono, monospace);letter-spacing:.06em;cursor:pointer;">GİRİŞ YAP</button>
-    </form>`;
-  document.body.appendChild(overlay);
-  const err = overlay.querySelector('#loginError');
-  if (message) err.textContent = message;
-  overlay.querySelector('#loginPassword').focus();
-  overlay.querySelector('#loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    err.textContent = '';
-    try {
-      const res = await nativeFetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: overlay.querySelector('#loginPassword').value }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.token) {
-        setToken(data.token);
-        window.location.reload();
-      } else if (res.status === 429) {
-        err.textContent = 'Çok fazla deneme. Lütfen 15 dakika sonra tekrar deneyin.';
-      } else {
-        err.textContent = 'Parola hatalı.';
-      }
-    } catch {
-      err.textContent = 'Sunucuya ulaşılamadı.';
-    }
-  });
-}
+// Sign-in, token storage and the authenticated fetch wrapper live in auth.js (window.RT).
+// No credential is embedded in this file: every person signs in with their own account.
+const API_BASE = RT.API_BASE;
+const WS_URL = RT.WS_URL;
+let currentUser = null;
+let features = {};
 
 // State
 let aliases = [];
@@ -153,10 +67,11 @@ let availableTemplates = [];
 async function initApp() {
   registerServiceWorker();
 
-  if (!getToken()) {
-    showLogin();
-    return;
-  }
+  // Shows the sign-in / forced password-change screen and never resolves until that is done
+  const me = await RT.ensureSession();
+  currentUser = me.user;
+  features = me.features || {};
+  decorateUserStrip();
   requestNotificationPermission();
 
   await loadAliases();
@@ -164,6 +79,20 @@ async function initApp() {
   await loadEmails();
   initWebSocket();
   setupEventListeners();
+}
+
+const ROLE_LABEL = { owner: 'SAHİP', admin: 'YÖNETİCİ', member: 'ÜYE' };
+
+function decorateUserStrip() {
+  const isStaff = currentUser.role === 'owner' || currentUser.role === 'admin';
+  document.getElementById('userChip').innerHTML =
+    `<strong>${escapeHtml(currentUser.name)}</strong> · ${ROLE_LABEL[currentUser.role] || ''}`;
+  document.getElementById('adminLink').textContent = isStaff ? 'YÖNETİM' : 'HESAP';
+  document.getElementById('btnLogout').addEventListener('click', RT.logout);
+  document.getElementById('userStrip').hidden = false;
+  btnSimulate.hidden = !features.dev_simulate;
+  // Members cannot delete mail (the server enforces it too)
+  btnDeleteEmail.hidden = !isStaff;
 }
 
 async function loadTemplates() {
@@ -204,7 +133,7 @@ function requestNotificationPermission() {
 function initWebSocket() {
   try {
     // The browser WebSocket API cannot set headers, so the short-lived JWT travels as a query parameter
-    ws = new WebSocket(`${WS_URL}?token=${encodeURIComponent(getToken())}`);
+    ws = new WebSocket(`${WS_URL}?token=${encodeURIComponent(RT.getToken())}`);
 
     ws.onopen = () => {
       console.log('[WS] Connected to Ramazanoğlu Tech Cloud Live Stream');
@@ -217,7 +146,7 @@ function initWebSocket() {
       console.warn('[WS] Live Stream closed. Scheduling auto-reconnect...');
       statusPill.textContent = '○ BULUT: BAĞLANTI KOPTU';
       statusPill.classList.remove('live');
-      reconnectTimer = setTimeout(initWebSocket, 4000);
+      scheduleReconnect();
     };
 
     ws.onerror = (err) => {
@@ -241,6 +170,21 @@ function initWebSocket() {
   } catch (err) {
     console.error('[WS Connection Error]:', err);
   }
+}
+
+// Reconnect only while the session is still valid: a disabled account or an ended session
+// gets the sign-in screen (via the fetch wrapper) instead of a reconnect loop.
+function scheduleReconnect() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`);
+      if (res.ok) initWebSocket();
+      else if (res.status !== 401 && res.status !== 403) scheduleReconnect();
+    } catch {
+      scheduleReconnect();
+    }
+  }, 4000);
 }
 
 function handleIncomingRealtimeEmail(newEmail) {
@@ -274,7 +218,7 @@ function renderAliasScroller() {
 
   const masterBtn = document.createElement('button');
   masterBtn.className = `alias-chip ${currentAliasFilter === 'all' ? 'active' : ''}`;
-  masterBtn.textContent = 'ALL TRAFFIC [MASTER]';
+  masterBtn.textContent = currentUser && currentUser.role === 'owner' ? 'ALL TRAFFIC [MASTER]' : 'TÜM ERİŞİLEBİLİR';
   masterBtn.dataset.alias = 'all';
   masterBtn.onclick = () => selectAliasFilter('all');
   aliasScroller.appendChild(masterBtn);

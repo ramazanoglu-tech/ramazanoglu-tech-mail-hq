@@ -8,6 +8,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { config } from './config.js';
 import { initDatabase } from './db.js';
+import { bootstrapOwner } from './users.js';
 import { apiRouter } from './routes.js';
 import { initWebSocketServer } from './websocket.js';
 import { initSmtpTransporter } from './smtpDispatcher.js';
@@ -104,8 +105,15 @@ async function bootstrap() {
   console.log('  Swiss-Style Architectural Minimalism & Zero-Local Dependency');
   console.log('================================================================');
 
-  // 1. Initialize PostgreSQL Connection Pool
+  // 1. Initialize PostgreSQL Connection Pool, account tables and the first owner
   await initDatabase();
+  await bootstrapOwner();
+  if (config.legacyApiKeyEnabled) {
+    console.warn(
+      '[SECURITY] LEGACY_API_KEY_ENABLED: requests using X-Super-Admin-Key act as an anonymous owner. ' +
+        'Set LEGACY_API_KEY_ENABLED=false once every client logs in with a personal account.'
+    );
+  }
 
   // 2. Initialize Outbound SMTP
   initSmtpTransporter();

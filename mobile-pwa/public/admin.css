@@ -1,0 +1,269 @@
+/* =============================================================================
+   RAMAZANOĞLU TECH MAIL HQ - ADMIN PANEL
+   Same language as ramazanoglu.tech: paper #FBFBF9, ink #111111, hairlines, 0px radius,
+   one International Orange square as the only accent. Tokens come from app.css.
+   ============================================================================= */
+
+.admin-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.admin-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ink-primary);
+}
+.admin-identity h1 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.admin-identity .who {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-secondary);
+}
+
+/* ---- tabs ---------------------------------------------------------------- */
+.admin-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: var(--border-grid);
+  overflow-x: auto;
+  margin-bottom: 24px;
+}
+.admin-tab {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 14px 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.admin-tab:hover { color: var(--ink-primary); }
+.admin-tab[aria-selected="true"] {
+  color: var(--ink-primary);
+  border-bottom-color: var(--accent-alert);
+}
+
+/* ---- toolbar ------------------------------------------------------------- */
+.admin-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.admin-toolbar .count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-secondary);
+}
+.admin-toolbar .grow { flex: 1; }
+
+/* ---- tables -------------------------------------------------------------- */
+.table-wrap {
+  background: var(--bg-card);
+  border: var(--border-grid);
+  overflow-x: auto;
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.admin-table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ink-secondary);
+  background: var(--bg-panel);
+  padding: 10px 14px;
+  border-bottom: var(--border-grid);
+  white-space: nowrap;
+}
+.admin-table td {
+  padding: 14px;
+  border-bottom: var(--border-grid);
+  vertical-align: top;
+}
+.admin-table tr:last-child td { border-bottom: 0; }
+.admin-table tbody tr:hover { background: var(--bg-page); }
+.admin-table .cell-main { font-weight: 600; }
+.admin-table .cell-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-secondary);
+  word-break: break-all;
+}
+.admin-table .mono { font-family: var(--font-mono); font-size: 11px; }
+.admin-table .right { text-align: right; white-space: nowrap; }
+tr.is-disabled .cell-main, tr.is-disabled .cell-sub { color: var(--ink-tertiary); }
+
+/* ---- badges & chips ------------------------------------------------------ */
+.role-badge, .status-tag, .chip {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  padding: 2px 6px;
+  border: 1px solid var(--ink-primary);
+  background: var(--bg-card);
+  white-space: nowrap;
+}
+.role-badge.owner { background: var(--ink-primary); color: #fff; }
+.status-tag { border-color: var(--border-color); color: var(--ink-secondary); font-weight: 600; }
+.status-tag.on { color: var(--ink-primary); border-color: var(--ink-primary); }
+.status-tag.off, .status-tag.warn { color: var(--accent-alert); border-color: var(--accent-alert); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { border-color: var(--border-color); font-weight: 600; background: var(--bg-panel); }
+.chip.all { border-color: var(--ink-primary); background: var(--bg-card); }
+.chip.more { color: var(--ink-secondary); }
+.dim { color: var(--ink-tertiary); }
+
+/* ---- panels / forms ------------------------------------------------------ */
+.panel {
+  background: var(--bg-card);
+  border: var(--border-grid);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.panel h2 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; }
+.form-grid .input-group { min-width: 0; }
+.inline-field { display: flex; align-items: stretch; }
+.inline-field .search-input { flex: 1; min-width: 0; }
+.inline-field .suffix {
+  display: flex; align-items: center; padding: 0 10px;
+  font-family: var(--font-mono); font-size: 12px; color: var(--ink-secondary);
+  background: var(--bg-panel); border: var(--border-grid); border-left: 0; white-space: nowrap;
+}
+.field-hint { font-size: 12px; color: var(--ink-secondary); }
+.form-error { color: var(--accent-alert); font-size: 12px; min-height: 16px; }
+.profile-list { display: grid; grid-template-columns: 140px 1fr; gap: 8px 16px; font-size: 13px; }
+.profile-list dt { font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: var(--ink-secondary); padding-top: 3px; }
+
+.check-row {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; cursor: pointer; padding: 6px 0;
+}
+.check-row input { width: 16px; height: 16px; accent-color: var(--ink-primary); flex-shrink: 0; }
+.check-all { border-bottom: var(--border-grid); padding-bottom: 10px; margin-bottom: 4px; }
+.check-list {
+  border: var(--border-grid);
+  background: var(--bg-card);
+  max-height: 220px;
+  overflow-y: auto;
+}
+.check-list .check-row { padding: 8px 12px; border-bottom: var(--border-grid); }
+.check-list .check-row:last-child { border-bottom: 0; }
+.check-list .check-row:hover { background: var(--bg-page); }
+.check-list .badge-tag { margin-right: 4px; }
+.check-list.is-disabled { opacity: .45; pointer-events: none; }
+.check-list .none { padding: 16px; text-align: center; color: var(--ink-secondary); font-family: var(--font-mono); font-size: 11px; }
+
+.modal-window.narrow { max-width: 460px; }
+.modal-title { font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: .5px; }
+.modal-footer.split { justify-content: space-between; align-items: center; }
+.footer-right { display: flex; gap: 8px; margin-left: auto; }
+
+.btn-danger {
+  background: var(--bg-card);
+  color: var(--accent-alert);
+  border: 1px solid var(--accent-alert);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+.btn-danger:hover { background: var(--accent-alert); color: #fff; }
+.btn-primary:disabled, .btn-danger:disabled { opacity: .5; cursor: default; }
+.btn-small { padding: 5px 10px; font-size: 11px; }
+
+/* ---- one-time secret ------------------------------------------------------ */
+.secret-who { font-size: 13px; }
+.secret-box {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  padding: 18px 8px;
+  border: 1px solid var(--ink-primary);
+  background: var(--bg-card);
+  user-select: all;
+  word-break: break-all;
+}
+.secret-warn { font-size: 12px; color: var(--ink-secondary); border-left: 2px solid var(--accent-alert); padding-left: 10px; }
+
+/* ---- toast ---------------------------------------------------------------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 20px);
+  background: var(--ink-primary);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 10px 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s, transform .2s;
+  z-index: 1000;
+  max-width: calc(100vw - 32px);
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.error { background: var(--accent-alert); }
+
+.audit-fail { color: var(--accent-alert); font-weight: 600; }
+
+/* ---- phones: tables become stacked cards ---------------------------------- */
+@media (max-width: 760px) {
+  .admin-shell { padding: 16px 12px 48px; }
+  .admin-table thead { display: none; }
+  .admin-table, .admin-table tbody, .admin-table tr, .admin-table td { display: block; width: 100%; }
+  .admin-table tr { border-bottom: var(--border-grid); padding: 10px 0; }
+  .admin-table tr:last-child { border-bottom: 0; }
+  .admin-table td { border: 0; padding: 4px 14px; }
+  .admin-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--ink-tertiary);
+    margin-bottom: 2px;
+  }
+  .admin-table .right { text-align: left; padding-top: 8px; }
+  .profile-list { grid-template-columns: 1fr; gap: 2px; }
+  .profile-list dd { margin-bottom: 10px; }
+  .modal-footer.split { flex-direction: column-reverse; align-items: stretch; gap: 8px; }
+  .footer-right { margin-left: 0; justify-content: flex-end; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { transition: none; }
+}

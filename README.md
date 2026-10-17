@@ -122,7 +122,15 @@ Tüm mimari kararlar, yapılan denetimler ve adım adım değişiklikler için [
 4. İnternete açmak için önüne HTTPS koyun (Cloudflare Tunnel / Caddy / nginx) ve `TRUST_PROXY=1` yapın.
 
 **İstemciler:**
-- Mobil PWA: açılışta yönetici parolası sorar, 12 saatlik JWT alır (sessionStorage).
+- Mobil PWA: e-posta + parola ile kişisel hesap girişi, 12 saatlik JWT alır (sessionStorage).
+
+**Kullanıcı hesapları ve yönetim paneli (`/admin.html`):**
+- İlk açılışta `OWNER_EMAIL` için sahip hesabı oluşur; ilk parola `SUPER_ADMIN_PASSWORD`'dür ve ilk girişte değiştirmek zorunludur.
+- Roller: **sahip** (her şey), **yönetici** (yalnızca üyeleri yönetir, sahip olmadığı kimlikleri veremez), **üye** (sadece kendisine atanan kimliklerin postasını görür ve o adresler adına gönderir; silemez).
+- Panelden kullanıcı oluşturma/düzenleme/pasifleştirme, kimlik (alias) erişimi atama, parola sıfırlama (geçici parola yalnızca bir kez gösterilir), kimlik ekleme ve denetim kaydı bulunur.
+- Parola değişimi, sıfırlama, pasifleştirme ve rol değişimi eski oturumları anında düşürür. 5 hatalı girişte hesap 15 dk kilitlenir.
+- Masaüstü (Qt) istemci hâlâ eski `X-Super-Admin-Key` ile çalışır (`LEGACY_API_KEY_ENABLED=true`). İstemci güncellenince `false` yapın.
+- Testler: `cd cloud-backend && npm run build && npm test`.
 - Masaüstü (Qt) ve kurulum sihirbazı: anahtar artık varsayılan olarak boştur; `config.json` içindeki `super_admin_key` ve kurulum ekranındaki alan elle doldurulur.
 
 **Geliştirme:** `MOCK_MODE=true` sahte verili, kalıcı olmayan demo çalıştırır; `/api/dev/*` yalnızca bu modda ve `NODE_ENV!=production` iken vardır.

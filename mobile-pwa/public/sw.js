@@ -3,12 +3,16 @@
 // =============================================================================
 
 // Bumped on purpose: v1.0 caches contain the old app.js that embedded the admin key
-const CACHE_NAME = 'rt-mail-hq-v1.1';
+const CACHE_NAME = 'rt-mail-hq-v1.2';
 const STATIC_ASSETS = [
   './',
   './index.html',
   './app.css',
   './app.js',
+  './auth.js',
+  './admin.html',
+  './admin.css',
+  './admin.js',
   './manifest.json',
   './icon.svg',
 ];

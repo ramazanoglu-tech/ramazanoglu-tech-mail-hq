@@ -59,6 +59,15 @@ export const config = {
   jwtSecret: requireSecret('JWT_SECRET', 32),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '12h',
 
+  // First account. Created on first start when the users table is empty; its initial password is
+  // SUPER_ADMIN_PASSWORD and the owner is forced to change it at first login.
+  ownerEmail: (process.env.OWNER_EMAIL || 'yusuf@ramazanoglu.tech').toLowerCase().trim(),
+  ownerName: process.env.OWNER_NAME || 'Yusuf Ramazanoğlu',
+
+  // Legacy shared key (X-Super-Admin-Key) used by the current Qt desktop client. It maps to a
+  // synthetic owner and cannot be attributed to a person: turn it off once the desktop app logs in.
+  legacyApiKeyEnabled: process.env.LEGACY_API_KEY_ENABLED !== 'false',
+
   // Strict Domain Filtering
   domainFilter: (process.env.DOMAIN_FILTER || '@ramazanoglu.tech').toLowerCase(),
 

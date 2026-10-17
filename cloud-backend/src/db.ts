@@ -5,6 +5,7 @@
 import { Pool, QueryResult } from 'pg';
 import { config } from './config.js';
 import { Email, EmailAlias, EmailAttachment } from './types.js';
+import { ACCOUNT_SCHEMA_SQL } from './accountSchema.js';
 
 let pool: Pool | null = null;
 let isConnectedToPostgres = false;
@@ -255,7 +256,13 @@ export async function initDatabase(): Promise<boolean> {
 
   isConnectedToPostgres = true;
   console.log(`[DB] Successfully connected to Cloud PostgreSQL at ${res.rows[0].current_time}`);
+  await pool.query(ACCOUNT_SCHEMA_SQL);
   return true;
+}
+
+/** Pool for repositories that live in their own module (users/audit). Null in mock mode. */
+export function getPool(): Pool | null {
+  return isConnectedToPostgres ? pool : null;
 }
 
 export function isDbConnected(): boolean {
@@ -307,6 +314,8 @@ export async function createAlias(aliasData: Partial<EmailAlias>): Promise<Email
 }
 
 export async function getEmails(params: {
+  /** Restrict to these identities (lower-case). null/undefined = unrestricted, [] = nothing. */
+  allowedAliases?: string[] | null;
   alias?: string;
   unread?: boolean;
   starred?: boolean;
@@ -319,11 +328,20 @@ export async function getEmails(params: {
   const limit = params.limit || 50;
   const offset = params.offset || 0;
 
+  if (params.allowedAliases && params.allowedAliases.length === 0) {
+    return { emails: [], total: 0 };
+  }
+
   if (isConnectedToPostgres && pool) {
     try {
       const conditions: string[] = ['1=1'];
-      const values: (string | boolean | number)[] = [];
+      const values: (string | boolean | number | string[])[] = [];
       let valIdx = 1;
+
+      if (params.allowedAliases) {
+        conditions.push(`LOWER(alias_target) = ANY($${valIdx++})`);
+        values.push(params.allowedAliases.map((a) => a.toLowerCase()));
+      }
 
       if (params.alias && params.alias !== 'all' && params.alias !== 'master') {
         conditions.push(`LOWER(alias_target) = LOWER($${valIdx++})`);
@@ -394,6 +412,11 @@ export async function getEmails(params: {
 
   // Fallback filtering on mockEmails
   let list = [...mockEmails];
+
+  if (params.allowedAliases) {
+    const allowed = new Set(params.allowedAliases.map((a) => a.toLowerCase()));
+    list = list.filter((e) => allowed.has(e.alias_target.toLowerCase()));
+  }
 
   if (params.alias && params.alias !== 'all' && params.alias !== 'master') {
     list = list.filter((e) => e.alias_target.toLowerCase() === params.alias?.toLowerCase());
@@ -605,9 +628,11 @@ export async function deleteEmail(id: string): Promise<boolean> {
   return false;
 }
 
-export async function getStats() {
-  const aliases = await getAliases();
-  const emailsResult = await getEmails({ limit: 1000 });
+export async function getStats(allowedAliases?: string[] | null) {
+  const allAliases = await getAliases();
+  const allowedSet = allowedAliases ? new Set(allowedAliases.map((a) => a.toLowerCase())) : null;
+  const aliases = allowedSet ? allAliases.filter((a) => allowedSet.has(a.email.toLowerCase())) : allAliases;
+  const emailsResult = await getEmails({ limit: 1000, allowedAliases });
   const allEmails = emailsResult.emails;
 
   const aliasStats = aliases.map((al) => {
