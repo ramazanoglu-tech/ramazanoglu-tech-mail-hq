@@ -69,7 +69,7 @@ export const config = {
   legacyApiKeyEnabled: process.env.LEGACY_API_KEY_ENABLED !== 'false',
 
   // Strict Domain Filtering
-  domainFilter: (process.env.DOMAIN_FILTER || '@ramazanoglu.tech').toLowerCase(),
+  domainFilter: (process.env.DOMAIN_FILTER || (process.env.CORPORATE_DOMAIN ? '@' + process.env.CORPORATE_DOMAIN.replace(/^@/, '') : '@ramazanoglu.tech')).toLowerCase(),
 
   // IMAP 7/24 Sync Motor
   imap: {
@@ -77,7 +77,7 @@ export const config = {
     port: parseInt(process.env.IMAP_PORT || '993', 10),
     tls: process.env.IMAP_TLS !== 'false',
     user: process.env.IMAP_USER || '',
-    password: (process.env.IMAP_PASSWORD || '').replace(/\s+/g, ''),
+    password: (process.env.IMAP_PASSWORD || process.env.IMAP_PASS || '').replace(/["']/g, '').replace(/\s+/g, ''),
     pollIntervalMs: parseInt(process.env.IMAP_POLL_INTERVAL_MS || '30000', 10),
     autoReconnect: process.env.IMAP_AUTO_RECONNECT !== 'false',
   },
@@ -88,7 +88,7 @@ export const config = {
     port: parseInt(process.env.SMTP_PORT || '465', 10),
     secure: process.env.SMTP_SECURE !== 'false',
     user: process.env.SMTP_USER || '',
-    password: (process.env.SMTP_PASSWORD || '').replace(/\s+/g, ''),
+    password: (process.env.SMTP_PASSWORD || process.env.SMTP_PASS || '').replace(/["']/g, '').replace(/\s+/g, ''),
   },
 
   // Mock / Dev Simulation. Demo data and /api/dev/* only exist when this is true.

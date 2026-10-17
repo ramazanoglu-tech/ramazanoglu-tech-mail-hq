@@ -4,7 +4,6 @@
 [![C++](https://img.shields.io/badge/Desktop-C%2B%2B20%20%2F%20Qt%206.6.3-00599C.svg?style=flat-square&logo=c%2B%2B)](desktop-cpp/)
 [![Backend](https://img.shields.io/badge/Backend-Node.js%2024%20%2F%20TypeScript-339933.svg?style=flat-square&logo=node.js)](cloud-backend/)
 [![PWA](https://img.shields.io/badge/Mobile-PWA%20%2F%20Vanilla%20JS-F7DF1E.svg?style=flat-square&logo=javascript)](mobile-pwa/)
-[![Installer](https://img.shields.io/badge/Installer-.NET%2010%20WinForms-512BD4.svg?style=flat-square&logo=dotnet)](installer/)
 [![Security](https://img.shields.io/badge/Zero--Trust-Enforced-red.svg?style=flat-square)](DOCUMENTATION.md)
 
 > **Ramazanoğlu Technologies Inc.** kurumsal ortakları (Yusuf & Nur) ve mühendislik kadrosu için geliştirilmiş; yerel veritabanı şişmesi barındırmayan (**Zero-Local Dependency**), 7/24 Gmail TLS IMAP ve SSL SMTP motoruyla senkronize (**100% Cloud-Synced**) kurumsal e-posta yönetim merkezi.
@@ -37,12 +36,6 @@ ramazanoglu-tech-mail-hq/
 │   ├── public/index.html  # Mobil PWA Arayüzü
 │   ├── public/app.js      # Canlı WebSocket + REST Senkronizasyonu
 │   └── public/sw.js       # Çevrimdışı Önbellek ve Service Worker
-│
-├── installer/             # Bağımsız Windows Kurulum Programı (.NET 10)
-│   ├── InstallerForm.cs   # 6 Adımlı İsviçre Tarzı Kurulum Sihirbazı
-│   └── SetupWizard.csproj # Self-Contained Tek Dosyalık Setup Derleyici
-│
-└── email-templates/       # Bağımsız Kullanıma Hazır 6 Adet HTML Şablonu
 ```
 
 ---
