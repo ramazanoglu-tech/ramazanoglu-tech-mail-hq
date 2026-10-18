@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Strict Swiss architectural styling: zero radius, hairlines, high readability */
+* { border-radius: 0 !important; }
+[hidden] { display: none !important; }
+body {
+  background-color: #FBFBF9;
+  color: #111111;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+@layer components {
+.hairline-t { border-top: 1px solid #E2E2DF; }
+.hairline-b { border-bottom: 1px solid #E2E2DF; }
+.hairline-l { border-left: 1px solid #E2E2DF; }
+.hairline-r { border-right: 1px solid #E2E2DF; }
+.hairline-box { border: 1px solid #E2E2DF; }
+.row-hover { transition: background-color .12s ease; }
+.row-hover:hover { background-color: #F3F3EF; }
+.msg-active { background-color: #F3F3EF; border-left: 3px solid #D9381E !important; }
+.nav-active { background-color: #111111; color: #FBFBF9; }
+}
+:focus-visible { outline: 2px solid #D9381E; outline-offset: 2px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #FBFBF9; }
+::-webkit-scrollbar-thumb { background: #D2D2CE; }
+::-webkit-scrollbar-thumb:hover { background: #111111; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
