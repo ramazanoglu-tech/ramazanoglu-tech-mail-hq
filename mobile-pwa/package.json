@@ -4,7 +4,8 @@
   "description": "Mobile & Web PWA Client for Ramazanoğlu Tech Mail HQ",
   "scripts": {
     "dev": "npx serve public -l 5173",
-    "start": "npx serve public -l 5173"
+    "start": "npx serve public -l 5173",
+    "build:css": "tailwindcss -c tailwind.config.js -i src.css -o public/tailwind.css --minify"
   },
   "keywords": [
     "ramazanoglu-tech",
@@ -13,5 +14,8 @@
     "email-client"
   ],
   "author": "Ramazanoğlu Technologies Inc.",
-  "license": "Proprietary"
+  "license": "Proprietary",
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
 }

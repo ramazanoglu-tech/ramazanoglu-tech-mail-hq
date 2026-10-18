@@ -124,6 +124,7 @@ Tüm mimari kararlar, yapılan denetimler ve adım adım değişiklikler için [
 - Parola değişimi, sıfırlama, pasifleştirme ve rol değişimi eski oturumları anında düşürür. 5 hatalı girişte hesap 15 dk kilitlenir.
 - Masaüstü (Qt) istemci hâlâ eski `X-Super-Admin-Key` ile çalışır (`LEGACY_API_KEY_ENABLED=true`). İstemci güncellenince `false` yapın.
 - Testler: `cd cloud-backend && npm run build && npm test`.
+- Arayüz stilleri Tailwind ile derlenir (CDN kullanılmaz, CSP izin vermez). `mobile-pwa/src.css` veya `index.html`/`app.js` içindeki sınıfları değiştirirseniz: `cd mobile-pwa && npm install && npm run build:css` (çıktı `public/tailwind.css` repoda tutulur).
 - Masaüstü (Qt) ve kurulum sihirbazı: anahtar artık varsayılan olarak boştur; `config.json` içindeki `super_admin_key` ve kurulum ekranındaki alan elle doldurulur.
 
 **Geliştirme:** `MOCK_MODE=true` sahte verili, kalıcı olmayan demo çalıştırır; `/api/dev/*` yalnızca bu modda ve `NODE_ENV!=production` iken vardır.
