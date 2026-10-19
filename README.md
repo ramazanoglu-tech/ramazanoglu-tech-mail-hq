@@ -133,21 +133,9 @@ Tüm mimari kararlar, yapılan denetimler ve adım adım değişiklikler için [
 
 Gelen mail Gmail'e hiç uğramaz: `*@ramazanoglu.tech` → Cloudflare Email Routing → Worker → imzalı HTTPS POST → Mail HQ (`/api/inbound/email`). Gönderim kendi SMTP sağlayıcınızdan çıkar. Mail HQ tek doğruluk kaynağıdır.
 
-**1. Sunucuda gizli anahtar (EC2):**
-```bash
-cd ~/ramazanoglu-tech-mail-hq && git pull origin main
-echo "INBOUND_WEBHOOK_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")" >> cloud-backend/.env   # docker-compose kökündeki .env kullanılıyorsa oraya yazın
-docker compose --profile tunnel up -d --build
-grep INBOUND_WEBHOOK_SECRET .env cloud-backend/.env   # değeri kopyalayın
-```
+**1. Sunucuda (EC2):** `bash scripts/setup-inbound.sh` (kodu çeker, kökteki `.env`'e anahtarı yazar, yeniden derler, anahtarı ekrana basar).
 
-**2. Worker (kendi bilgisayarınızdan, Node gerekir):**
-```bash
-cd email-worker && npm install
-npx wrangler login
-npx wrangler secret put INBOUND_WEBHOOK_SECRET     # 1. adımdaki değeri yapıştırın
-npx wrangler deploy
-```
+**2. Bilgisayarınızda (Node gerekir):** `bash scripts/deploy-worker.sh` (Cloudflare girişi, anahtarı sorar, Worker'ı yükler).
 
 **3. Cloudflare panelinde:** `ramazanoglu.tech` → Email → Email Routing → Enable (MX/SPF kayıtlarını otomatik ekler) → Routing rules → **Catch-all address → Send to a Worker → `ramazanoglu-mail-inbound`** → Active.
 
