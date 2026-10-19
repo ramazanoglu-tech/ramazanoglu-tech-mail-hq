@@ -1,0 +1,12 @@
+{
+  "name": "ramazanoglu-mail-inbound-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Email Routing worker: forwards every @ramazanoglu.tech mail to Mail HQ",
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
