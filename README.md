@@ -150,3 +150,13 @@ SMTP_PASSWORD=...
 **5. Gmail'i bırakmak:** `IMAP_USER` ve `IMAP_PASSWORD` satırlarını silin; IMAP motoru kendiliğinden bekleme moduna geçer.
 
 Notlar: Worker backend'e ulaşamazsa mesajı reddeder (gönderen bounce alır, mail sessizce kaybolmaz). İki adrese giden mail her adres için ayrı satır olur. Ek dosyaların şimdilik yalnızca adı/boyutu saklanır. Üçüncü taraf IMAP istemcileri (Outlook, Thunderbird) bu tasarımda desteklenmez; Mail HQ arayüzü kullanılır.
+
+## Yedekleme
+
+Mail HQ artık tek doğruluk kaynağı: veritabanını düzenli yedekleyin.
+```bash
+bash scripts/backup-db.sh                       # ~/mailhq-backups altına, son 14 yedeği tutar
+( crontab -l 2>/dev/null; echo '30 3 * * * cd ~/ramazanoglu-tech-mail-hq && bash scripts/backup-db.sh >> ~/mailhq-backups/backup.log 2>&1' ) | crontab -   # her gün 03:30 UTC
+bash scripts/restore-db.sh ~/mailhq-backups/<dosya>.sql.gz   # geri yükleme (onay ister)
+```
+Aynı diskteki yedek gerçek yedek sayılmaz: `rclone config` ile bir uzak depo (örn. Cloudflare R2, ücretsiz 10 GB) tanımlayıp `.env`'ye `BACKUP_RCLONE_REMOTE=r2:mailhq-backups` ekleyin; script her yedeği oraya da kopyalar.
