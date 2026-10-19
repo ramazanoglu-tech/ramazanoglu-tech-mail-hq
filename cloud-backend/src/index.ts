@@ -13,6 +13,7 @@ import { apiRouter } from './routes.js';
 import { initWebSocketServer } from './websocket.js';
 import { initSmtpTransporter } from './smtpDispatcher.js';
 import { startImapSyncEngine } from './imapSync.js';
+import { inboundRouter } from './inboundRoutes.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -63,6 +64,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Super-Admin-Key', 'X-Admin-Key'],
 }));
+// Inbound mail door needs the raw MIME body, so it is mounted before the JSON parser.
+app.use('/api/inbound', inboundRouter);
 app.use(express.json({ limit: '2mb' }));
 
 // Request logging (Swiss minimalist log format)

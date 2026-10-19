@@ -1,0 +1,9 @@
+{
+  "name": "ramazanoglu-mail-inbound",
+  "main": "src/index.js",
+  "compatibility_date": "2025-09-01",
+  "vars": {
+    "INBOUND_URL": "https://mail.ramazanoglu.tech/api/inbound/email"
+  }
+  // Secret (not stored here):  npx wrangler secret put INBOUND_WEBHOOK_SECRET
+}

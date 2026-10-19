@@ -47,6 +47,7 @@ services:
       DATABASE_SSL: "false"   # internal docker network, no TLS between the containers
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:?Set SUPER_ADMIN_PASSWORD in .env}
       OWNER_EMAIL: ${OWNER_EMAIL:-yusuf@ramazanoglu.tech}
+      INBOUND_WEBHOOK_SECRET: ${INBOUND_WEBHOOK_SECRET:-}
       OWNER_NAME: ${OWNER_NAME:-Yusuf Ramazanoğlu}
       LEGACY_API_KEY_ENABLED: ${LEGACY_API_KEY_ENABLED:-true}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}

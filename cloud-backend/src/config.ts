@@ -68,6 +68,9 @@ export const config = {
   // synthetic owner and cannot be attributed to a person: turn it off once the desktop app logs in.
   legacyApiKeyEnabled: process.env.LEGACY_API_KEY_ENABLED !== 'false',
 
+  // Gmail-free inbound: shared HMAC secret with the Cloudflare Email Worker (empty = webhook disabled)
+  inboundWebhookSecret: process.env.INBOUND_WEBHOOK_SECRET || '',
+
   // Strict Domain Filtering
   domainFilter: (process.env.DOMAIN_FILTER || (process.env.CORPORATE_DOMAIN ? '@' + process.env.CORPORATE_DOMAIN.replace(/^@/, '') : '@ramazanoglu.tech')).toLowerCase(),
 
