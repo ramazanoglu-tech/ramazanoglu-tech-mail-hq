@@ -160,3 +160,12 @@ bash scripts/backup-db.sh                       # ~/mailhq-backups altına, son 
 bash scripts/restore-db.sh ~/mailhq-backups/<dosya>.sql.gz   # geri yükleme (onay ister)
 ```
 Aynı diskteki yedek gerçek yedek sayılmaz: `rclone config` ile bir uzak depo (örn. Cloudflare R2, ücretsiz 10 GB) tanımlayıp `.env`'ye `BACKUP_RCLONE_REMOTE=r2:mailhq-backups` ekleyin; script her yedeği oraya da kopyalar.
+
+## Şirket araçları (Uptime Kuma + Vaultwarden)
+
+Sunucuda: `docker compose --profile tunnel --profile tools up -d`
+
+1. Cloudflare Zero Trust → Networks → Tunnels → `mailhq` → Public Hostname ekleyin: `status.ramazanoglu.tech` → `http://uptime-kuma:3001`, `vault.ramazanoglu.tech` → `http://vaultwarden:80` (DNS kaydını Cloudflare kendisi açar).
+2. `https://vault.ramazanoglu.tech` adresinde ilk hesapları (siz ve ortak) oluşturun, sonra `.env`'de `VAULTWARDEN_SIGNUPS_ALLOWED=false` yapıp komutu tekrar çalıştırın.
+3. `https://status.ramazanoglu.tech` adresinde yönetici hesabı oluşturup izleyici ekleyin: `https://mail.ramazanoglu.tech/api/health` (HTTP, 60 sn), şirket sitesi ve bildirim kanalı (e-posta/Telegram).
+4. Kasa verisi `scripts/backup-db.sh` ile veritabanıyla birlikte yedeklenir.

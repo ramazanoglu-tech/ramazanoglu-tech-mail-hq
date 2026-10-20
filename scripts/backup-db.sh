@@ -21,8 +21,18 @@ mv "$FILE.tmp" "$FILE"
 chmod 600 "$FILE"
 echo "OK $FILE ($(du -h "$FILE" | cut -f1))"
 
+# Vaultwarden vault (only if the tools profile is running): copy its data volume
+VW_VOL="$(docker volume ls -q --filter name=vwdata | head -n1 || true)"
+if [ -n "$VW_VOL" ] && docker ps --format '{{.Names}}' | grep -q '^ramazanoglu_vaultwarden$'; then
+  VWFILE="$DIR/vaultwarden-$(date -u +%Y%m%d-%H%M%S).tar.gz"
+  docker run --rm -v "$VW_VOL":/data:ro alpine tar czf - -C /data . > "$VWFILE.tmp" && mv "$VWFILE.tmp" "$VWFILE" && chmod 600 "$VWFILE"
+  echo "OK $VWFILE"
+  ls -1t "$DIR"/vaultwarden-*.tar.gz | tail -n +$((KEEP + 1)) | xargs -r rm -f
+fi
+
 ls -1t "$DIR"/mailhq-*.sql.gz | tail -n +$((KEEP + 1)) | xargs -r rm -f
 
 if [ -n "${BACKUP_RCLONE_REMOTE:-}" ]; then
+  [ -n "${VWFILE:-}" ] && [ -f "$VWFILE" ] && rclone copy "$VWFILE" "$BACKUP_RCLONE_REMOTE"
   rclone copy "$FILE" "$BACKUP_RCLONE_REMOTE" && echo "Offsite copy done -> $BACKUP_RCLONE_REMOTE"
 fi

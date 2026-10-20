@@ -75,5 +75,36 @@ services:
     depends_on:
       - backend
 
+  # ---- Company tools (optional): docker compose --profile tunnel --profile tools up -d
+  # Add Public Hostnames to the same tunnel (Zero Trust > Networks > Tunnels):
+  #   status.ramazanoglu.tech -> http://uptime-kuma:3001
+  #   vault.ramazanoglu.tech  -> http://vaultwarden:80
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: ramazanoglu_uptime_kuma
+    restart: unless-stopped
+    profiles: ["tools"]
+    mem_limit: 300m
+    volumes:
+      - kumadata:/app/data
+
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: ramazanoglu_vaultwarden
+    restart: unless-stopped
+    profiles: ["tools"]
+    mem_limit: 200m
+    environment:
+      DOMAIN: https://vault.ramazanoglu.tech
+      # Leave true only while creating the first accounts, then set false in .env and recreate.
+      SIGNUPS_ALLOWED: ${VAULTWARDEN_SIGNUPS_ALLOWED:-true}
+      INVITATIONS_ALLOWED: "true"
+      ADMIN_TOKEN: ${VAULTWARDEN_ADMIN_TOKEN:-}   # empty = admin page disabled
+      WEBSOCKET_ENABLED: "true"
+    volumes:
+      - vwdata:/data
+
 volumes:
   pgdata:
+  kumadata:
+  vwdata:
