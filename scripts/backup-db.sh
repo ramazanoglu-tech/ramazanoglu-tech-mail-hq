@@ -5,6 +5,7 @@
 # - Optional offsite copy: set BACKUP_RCLONE_REMOTE (e.g. "r2:mailhq-backups") after `rclone config`
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=/dev/null
 set -a; [ -f .env ] && . ./.env; set +a
 
 DIR="${BACKUP_DIR:-$HOME/mailhq-backups}"
@@ -27,10 +28,10 @@ if [ -n "$VW_VOL" ] && docker ps --format '{{.Names}}' | grep -q '^ramazanoglu_v
   VWFILE="$DIR/vaultwarden-$(date -u +%Y%m%d-%H%M%S).tar.gz"
   docker run --rm -v "$VW_VOL":/data:ro alpine tar czf - -C /data . > "$VWFILE.tmp" && mv "$VWFILE.tmp" "$VWFILE" && chmod 600 "$VWFILE"
   echo "OK $VWFILE"
-  ls -1t "$DIR"/vaultwarden-*.tar.gz | tail -n +$((KEEP + 1)) | xargs -r rm -f
+  find "$DIR" -maxdepth 1 -name 'vaultwarden-*.tar.gz' -printf '%T@ %p\n' | sort -nr | tail -n +$((KEEP + 1)) | cut -d' ' -f2- | xargs -r rm -f
 fi
 
-ls -1t "$DIR"/mailhq-*.sql.gz | tail -n +$((KEEP + 1)) | xargs -r rm -f
+find "$DIR" -maxdepth 1 -name 'mailhq-*.sql.gz' -printf '%T@ %p\n' | sort -nr | tail -n +$((KEEP + 1)) | cut -d' ' -f2- | xargs -r rm -f
 
 if [ -n "${BACKUP_RCLONE_REMOTE:-}" ]; then
   [ -n "${VWFILE:-}" ] && [ -f "$VWFILE" ] && rclone copy "$VWFILE" "$BACKUP_RCLONE_REMOTE"

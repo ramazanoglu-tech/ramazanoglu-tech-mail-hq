@@ -2,6 +2,7 @@
 # Restore a backup INTO the running database (replaces current data!):  bash scripts/restore-db.sh ~/mailhq-backups/<file>.sql.gz
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=/dev/null
 set -a; [ -f .env ] && . ./.env; set +a
 [ -f "${1:-}" ] || { echo "usage: $0 <backup.sql.gz>"; exit 1; }
 read -r -p "Bu islem mevcut veriyi silip yedegi yukler. Devam? (evet yazin) " a

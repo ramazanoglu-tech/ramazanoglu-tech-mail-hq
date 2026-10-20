@@ -1,0 +1,113 @@
+name: CI
+
+# Pull requests run it directly; merges to main run it through deploy.yml (workflow_call).
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: cloud-backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cloud-backend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+  audit:
+    name: Dependency audit (production)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm audit (fails on high or critical)
+        working-directory: cloud-backend
+        run: npm audit --omit=dev --audit-level=high
+
+  pwa:
+    name: PWA checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generated CSS is up to date
+        working-directory: mobile-pwa
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build:css
+          git diff --exit-code -- public/tailwind.css
+      - name: No inline handlers or inline scripts (CSP is script-src 'self')
+        run: |
+          if grep -RnE "[[:space:]]on(click|change|submit|input|load|error)[[:space:]]*=" mobile-pwa/public --include='*.html'; then
+            echo "Inline event handlers break the CSP." >&2; exit 1
+          fi
+          if grep -RnE "<script>[^<]" mobile-pwa/public --include='*.html'; then
+            echo "Inline scripts break the CSP." >&2; exit 1
+          fi
+
+  worker:
+    name: Email worker syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --check email-worker/src/index.js
+
+  docker:
+    name: Docker image and compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose files are valid
+        env:
+          POSTGRES_PASSWORD: ci
+          SUPER_ADMIN_PASSWORD: ci
+          JWT_SECRET: ci
+          STAGING_POSTGRES_PASSWORD: ci
+          STAGING_SUPER_ADMIN_PASSWORD: ci
+          STAGING_JWT_SECRET: ci
+        run: |
+          docker compose --profile tunnel --profile tools config --quiet
+          docker compose -f docker-compose.staging.yml config --quiet
+      - name: Image builds
+        run: docker build -f cloud-backend/Dockerfile -t mailhq-backend:ci .
+
+  shell:
+    name: Shell and workflow lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck -S warning scripts/*.sh
+      - name: actionlint
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
+          ./actionlint -color

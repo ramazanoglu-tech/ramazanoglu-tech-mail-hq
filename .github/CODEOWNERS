@@ -1,0 +1,5 @@
+# Every change needs a review from an owner once branch protection requires code-owner review.
+*                      @yousiframazanoglu
+/.github/              @yousiframazanoglu
+/scripts/              @yousiframazanoglu
+/docker-compose*.yml   @yousiframazanoglu

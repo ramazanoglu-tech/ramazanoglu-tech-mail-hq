@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Lets GitHub Actions of ONE repository run commands on ONE EC2 instance through SSM
+  (no SSH, no stored keys), and gives the instance the role SSM needs.
+
+Parameters:
+  GitHubRepo:
+    Type: String
+    Default: yousiframazanoglu/ramazanoglu-tech-mail-hq
+    Description: owner/repo allowed to assume the role
+  InstanceId:
+    Type: AWS::EC2::Instance::Id
+    Description: The production server
+  CreateOidcProvider:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Set false if this account already has the token.actions.githubusercontent.com provider
+
+Conditions:
+  MakeProvider: !Equals [!Ref CreateOidcProvider, "true"]
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: MakeProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+      ThumbprintList: [6938fd4d98bab03faadb97b34396831e3780aea1]
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: mailhq-github-deploy
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepo}:ref:refs/heads/main
+      Policies:
+        - PolicyName: ssm-run-on-one-instance
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${InstanceId}
+                  - !Sub arn:aws:ssm:${AWS::Region}::document/AWS-RunShellScript
+              - Effect: Allow
+                Action: [ssm:GetCommandInvocation, ssm:ListCommandInvocations]
+                Resource: "*"
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: mailhq-ec2-ssm
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: mailhq-ec2-ssm
+      Roles: [!Ref InstanceRole]
+
+Outputs:
+  DeployRoleArn:
+    Value: !GetAtt DeployRole.Arn
+    Description: GitHub secret AWS_DEPLOY_ROLE_ARN
+  InstanceProfileName:
+    Value: !Ref InstanceProfile
+    Description: Attach to the EC2 instance (Actions > Security > Modify IAM role)

@@ -169,3 +169,14 @@ Sunucuda: `docker compose --profile tunnel --profile tools up -d`
 2. `https://vault.ramazanoglu.tech` adresinde ilk hesapları (siz ve ortak) oluşturun, sonra `.env`'de `VAULTWARDEN_SIGNUPS_ALLOWED=false` yapıp komutu tekrar çalıştırın.
 3. `https://status.ramazanoglu.tech` adresinde yönetici hesabı oluşturup izleyici ekleyin: `https://mail.ramazanoglu.tech/api/health` (HTTP, 60 sn), şirket sitesi ve bildirim kanalı (e-posta/Telegram).
 4. Kasa verisi `scripts/backup-db.sh` ile veritabanıyla birlikte yedeklenir.
+
+
+## Mühendislik süreçleri
+
+- `docs/architecture.md`: mimari, ortamlar ve yayın hattı
+- `docs/runbook.md`: işletme komutları ve sorun giderme
+- `docs/ops-setup.md`: otomatik yayın ve uzaktan işletme kurulumu
+- `SECURITY.md`: açık bildirme politikası
+
+Her değişiklik pull request ile gelir; CI (build, test, bağımlılık denetimi, lint) geçmeden birleştirilmez.
+Birleştirilen değişiklik otomatik yayınlanır, sağlık kontrolü geçmezse kendiliğinden geri alınır.
