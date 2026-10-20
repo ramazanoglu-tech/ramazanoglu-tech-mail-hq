@@ -74,17 +74,6 @@ export const config = {
   // Strict Domain Filtering
   domainFilter: (process.env.DOMAIN_FILTER || (process.env.CORPORATE_DOMAIN ? '@' + process.env.CORPORATE_DOMAIN.replace(/^@/, '') : '@ramazanoglu.tech')).toLowerCase(),
 
-  // IMAP 7/24 Sync Motor
-  imap: {
-    host: process.env.IMAP_HOST || 'imap.gmail.com',
-    port: parseInt(process.env.IMAP_PORT || '993', 10),
-    tls: process.env.IMAP_TLS !== 'false',
-    user: process.env.IMAP_USER || '',
-    password: (process.env.IMAP_PASSWORD || process.env.IMAP_PASS || '').replace(/["']/g, '').replace(/\s+/g, ''),
-    pollIntervalMs: parseInt(process.env.IMAP_POLL_INTERVAL_MS || '30000', 10),
-    autoReconnect: process.env.IMAP_AUTO_RECONNECT !== 'false',
-  },
-
   // Outbound SMTP Dispatcher
   smtp: {
     host: process.env.SMTP_HOST || 'smtp.gmail.com',

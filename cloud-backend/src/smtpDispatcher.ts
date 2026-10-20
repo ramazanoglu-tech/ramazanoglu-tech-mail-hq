@@ -3,13 +3,13 @@
 // =============================================================================
 
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
+import nodemailer, { type Transporter, type SendMailOptions } from 'nodemailer';
 import { config } from './config.js';
 import { createAlias, getAliases, saveEmail } from './db.js';
 import { Email, SendEmailPayload } from './types.js';
 import { broadcastWebSocket } from './websocket.js';
 
-let transporter: nodemailer.Transporter | null = null;
+let transporter: Transporter | null = null;
 
 export function initSmtpTransporter() {
   if (!config.smtp.user || !config.smtp.password || config.mockMode) {
@@ -108,7 +108,7 @@ export async function sendEmailAsAlias(payload: SendEmailPayload): Promise<Email
   // Real SMTP dispatch. A failure must surface to the caller: never record a mail as "sent" when it was not.
   if (transporter && !config.mockMode) {
     try {
-      const mailOptions: nodemailer.SendMailOptions = {
+      const mailOptions: SendMailOptions = {
         from: `"${safeDisplayName}" <${alias.email}>`,
         sender: config.smtp.user,
         replyTo: alias.email,
