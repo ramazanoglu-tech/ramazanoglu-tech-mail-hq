@@ -1,6 +1,6 @@
 # Build context is the REPOSITORY ROOT (see docker-compose.yml) so the PWA can be copied in.
 
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 
 WORKDIR /app
 COPY cloud-backend/package*.json cloud-backend/tsconfig.json ./
@@ -9,7 +9,7 @@ RUN npm ci
 COPY cloud-backend/src ./src
 RUN npm run build
 
-FROM node:22-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
