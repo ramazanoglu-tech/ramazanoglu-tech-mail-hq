@@ -1,0 +1,65 @@
+# Isolated staging stack: own database, own secrets, no real mail credentials.
+#   bash scripts/staging.sh <branch>
+# Reach it through the existing tunnel: add a route  staging.ramazanoglu.tech -> http://ramazanoglu_staging_backend:8765
+name: mailhq-staging
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ramazanoglu_staging_postgres
+    restart: unless-stopped
+    mem_limit: 200m
+    environment:
+      POSTGRES_USER: mailhq
+      POSTGRES_PASSWORD: ${STAGING_POSTGRES_PASSWORD:?missing}
+      POSTGRES_DB: mailhq_staging
+    volumes:
+      - stagingdata:/var/lib/postgresql/data
+      - ./cloud-backend/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mailhq -d mailhq_staging"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging: &logging
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  backend:
+    build:
+      context: .
+      dockerfile: cloud-backend/Dockerfile
+    container_name: ramazanoglu_staging_backend
+    restart: unless-stopped
+    mem_limit: 256m
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8766:8765"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "8765"
+      TRUST_PROXY: "1"
+      DATABASE_URL: postgresql://mailhq:${STAGING_POSTGRES_PASSWORD}@postgres:5432/mailhq_staging
+      DATABASE_SSL: "false"
+      SUPER_ADMIN_PASSWORD: ${STAGING_SUPER_ADMIN_PASSWORD:?missing}
+      JWT_SECRET: ${STAGING_JWT_SECRET:?missing}
+      OWNER_EMAIL: staging-owner@ramazanoglu.tech
+      LEGACY_API_KEY_ENABLED: "false"
+      DOMAIN_FILTER: "@ramazanoglu.tech"
+      # No IMAP/SMTP credentials and no inbound secret: staging cannot send or receive real mail.
+      MOCK_MODE: "false"
+    logging: *logging
+    networks:
+      - default
+      - prod
+
+volumes:
+  stagingdata:
+
+networks:
+  prod:
+    external: true
+    name: ${PROD_NETWORK:-ramazanoglu-tech-mail-hq_default}
