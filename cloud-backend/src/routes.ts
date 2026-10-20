@@ -27,7 +27,7 @@ import {
   writeAudit,
 } from './users.js';
 import { sendEmailAsAlias } from './smtpDispatcher.js';
-import { getSyncStatus, pollInbox } from './imapSync.js';
+import { getSyncStatus, pollInbox } from './syncStatus.js';
 import { broadcastWebSocket, getConnectedClientCount, refreshUserSockets } from './websocket.js';
 import { SWISS_EMAIL_TEMPLATES } from './templates.js';
 import { adminRouter } from './adminRoutes.js';
@@ -490,7 +490,7 @@ apiRouter.get('/stats', authed, async (req: Request, res: Response) => {
 apiRouter.post('/sync/trigger', authed, staff, syncLimiter, async (_req: Request, res: Response) => {
   try {
     await pollInbox();
-    res.json({ message: 'IMAP senkronizasyon döngüsü tetiklendi.' });
+    res.json({ message: 'Gelen mail push tabanlıdır; yoklanacak bir şey yok.' });
   } catch (err) {
     res.status(500).json({ error: errMsg(err) });
   }

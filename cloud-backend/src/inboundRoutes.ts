@@ -11,6 +11,7 @@ import { config } from './config.js';
 import { checkMessageExists, saveEmail } from './db.js';
 import { createRateLimiter } from './routes.js';
 import { broadcastWebSocket } from './websocket.js';
+import { recordInbound } from './syncStatus.js';
 import { EmailAttachment } from './types.js';
 
 const MAX_MESSAGE_BYTES = 26 * 1024 * 1024; // Cloudflare Email Routing hard limit is 25 MiB
@@ -119,6 +120,7 @@ inboundRouter.post('/email', limiter, rawBody, async (req: Request, res: Respons
       attachments
     );
 
+    recordInbound();
     broadcastWebSocket('EMAIL_RECEIVED', saved);
     console.log(`[INBOUND] stored mail for ${envTo}: '${saved.subject}'`);
     res.status(201).json({ stored: true, id: saved.id });

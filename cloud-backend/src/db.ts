@@ -543,7 +543,7 @@ export async function saveEmail(email: Omit<Email, 'id'>, attachments: Omit<Emai
       );
 
       if (emailRes.rows.length === 0) {
-        // Same Message-ID already stored (IMAP re-poll race): return the existing row, do not duplicate
+        // Same Message-ID already stored (replayed delivery): return the existing row, do not duplicate
         const existing = await pool.query('SELECT * FROM emails WHERE message_id = $1', [fullEmail.message_id]);
         return { ...existing.rows[0], attachments: [] };
       }

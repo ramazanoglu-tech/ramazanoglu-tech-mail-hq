@@ -12,7 +12,6 @@ import { bootstrapOwner } from './users.js';
 import { apiRouter } from './routes.js';
 import { initWebSocketServer } from './websocket.js';
 import { initSmtpTransporter } from './smtpDispatcher.js';
-import { startImapSyncEngine } from './imapSync.js';
 import { inboundRouter } from './inboundRoutes.js';
 
 const app = express();
@@ -134,8 +133,6 @@ async function bootstrap() {
     }
   });
 
-  // 5. Start 7/24 Cloud IMAP Synchronization Listener
-  await startImapSyncEngine();
 }
 
 // Graceful shutdown (SIGTERM is what docker/pm2/systemd send)
