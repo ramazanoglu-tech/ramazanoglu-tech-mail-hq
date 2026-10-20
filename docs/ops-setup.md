@@ -27,6 +27,9 @@ Depo → **Settings → Secrets and variables → Actions → New repository sec
 | `AWS_REGION` | `eu-north-1` |
 | `AWS_INSTANCE_ID` | `i-...` |
 
+Aynı sayfada **Variables** sekmesinden `DEPLOY_ENABLED` = `true` değişkenini ekleyin. Bu değişken yokken
+yayın ve `/ops` adımları kapalı kalır (AWS tarafı hazır olmadan hata vermesin diye).
+
 ## 4. Deneme
 
 `main`'e birleştirilen bir değişiklik Actions sekmesinde **Deploy** çalıştırır. Elle denemek için herhangi

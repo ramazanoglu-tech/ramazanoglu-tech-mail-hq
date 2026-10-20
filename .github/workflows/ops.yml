@@ -22,6 +22,7 @@ jobs:
   run:
     name: ops command
     if: >-
+      vars.DEPLOY_ENABLED == 'true' &&
       github.event.comment.author_association == 'OWNER' &&
       startsWith(github.event.comment.body, '/ops ')
     runs-on: ubuntu-latest

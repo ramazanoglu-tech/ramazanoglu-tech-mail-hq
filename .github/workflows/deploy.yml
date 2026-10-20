@@ -21,6 +21,8 @@ jobs:
 
   deploy:
     name: Deploy to production
+    # Stays off until the AWS side is set up (docs/ops-setup.md): create the repository variable DEPLOY_ENABLED=true
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 20
