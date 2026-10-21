@@ -180,3 +180,7 @@ Sunucuda: `docker compose --profile tunnel --profile tools up -d`
 
 Her değişiklik pull request ile gelir; CI (build, test, bağımlılık denetimi, lint) geçmeden birleştirilmez.
 Birleştirilen değişiklik otomatik yayınlanır, sağlık kontrolü geçmezse kendiliğinden geri alınır.
+
+## Yapay zekâ ajan erişimi (MCP)
+
+Claude/Antigravity gibi ajanlar `https://mail.ramazanoglu.tech/mcp` üzerinden, kapsamlı ve iptal edilebilir token'la bağlanır. Postayı okuyabilir, gönderim önerebilir; gönderim her zaman insan onayı ister. Kurulum ve güvenlik modeli: [docs/agent-access.md](docs/agent-access.md).

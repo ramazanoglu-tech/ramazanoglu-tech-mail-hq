@@ -22,6 +22,7 @@
     users: [],
     aliases: [],
     audit: [],
+    agent: { tokens: [], outbox: [] },
     editing: null, // user being edited, null = creating
   };
 
@@ -79,6 +80,13 @@
   async function loadUsers() {
     state.users = (await call('GET', '/admin/users')).users || [];
   }
+  async function loadAgent() {
+    const [out, tok] = await Promise.all([
+      call('GET', '/agent/outbox'),
+      isOwner ? call('GET', '/agent/tokens') : Promise.resolve({ tokens: [] }),
+    ]);
+    state.agent = { outbox: out.items || [], tokens: tok.tokens || [] };
+  }
   async function loadAudit() {
     state.audit = (await call('GET', '/admin/audit?limit=200')).entries || [];
   }
@@ -91,7 +99,7 @@
     $('brandSub').textContent = isStaff ? 'MAIL HQ // YÖNETİM' : 'MAIL HQ // HESAP';
 
     const tabs = isStaff
-      ? [['users', 'KULLANICILAR'], ['aliases', 'KİMLİKLER'], ['audit', 'DENETİM KAYDI'], ['profile', 'HESABIM']]
+      ? [['users', 'KULLANICILAR'], ['aliases', 'KİMLİKLER'], ['agents', 'AJANLAR'], ['audit', 'DENETİM KAYDI'], ['profile', 'HESABIM']]
       : [['profile', 'HESABIM']];
     $('adminTabs').innerHTML = tabs
       .map(
@@ -110,6 +118,7 @@
       if (tab === 'users') await Promise.all([loadAliases(), loadUsers()]);
       if (tab === 'aliases') await Promise.all([loadAliases(), loadUsers()]);
       if (tab === 'audit') await loadAudit();
+      if (tab === 'agents') await Promise.all([loadAliases(), loadAgent()]);
       if (tab === 'profile') await loadAliases();
     } catch (e) {
       content.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
@@ -122,6 +131,7 @@
     if (state.tab === 'users') content.innerHTML = usersHtml();
     else if (state.tab === 'aliases') content.innerHTML = aliasesHtml();
     else if (state.tab === 'audit') content.innerHTML = auditHtml();
+    else if (state.tab === 'agents') content.innerHTML = agentsHtml();
     else content.innerHTML = profileHtml();
   }
 
@@ -311,7 +321,7 @@
     const text = $('secretValue').textContent;
     try {
       await navigator.clipboard.writeText(text);
-      toast('Parola panoya kopyalandı');
+      toast('Panoya kopyalandı');
     } catch (e) {
       const range = document.createRange();
       range.selectNodeContents($('secretValue'));
@@ -322,7 +332,18 @@
     }
   }
 
+  function showToken(name, token) {
+    $('secretTitle').textContent = 'AJAN TOKEN\'I';
+    $('secretWho').textContent = '"' + name + '" için erişim token\'ı:';
+    $('secretValue').textContent = token;
+    $('secretWarn').textContent = 'Bu token yalnızca şimdi gösterilir; sunucuda yalnızca özeti saklanır. Ajan yapılandırmasına yapıştırın ve başka yere yazmayın. Sızdığından şüphelenirseniz AJANLAR sekmesinden hemen iptal edin.';
+    openModal('secretModal');
+    $('secretValue').focus();
+  }
+
   function closeSecret() {
+    $('secretTitle').textContent = 'GEÇİCİ PAROLA';
+    $('secretWarn').textContent = 'Bu parola yalnızca şimdi gösterilir ve sunucuda düz metin olarak saklanmaz. Kullanıcıya güvenli bir kanaldan iletin. İlk girişte kendi parolasını belirlemek zorunda kalacak.';
     $('secretValue').textContent = ''; // do not leave it in the DOM
     closeModals();
   }
@@ -390,6 +411,125 @@
     }
   }
 
+  // ---- agents tab (AI access: send approvals + tokens) ----------------------
+  const STATUS_LABEL = { pending: 'ONAY BEKLİYOR', sending: 'GÖNDERİLİYOR', sent: 'GÖNDERİLDİ', rejected: 'REDDEDİLDİ', failed: 'BAŞARISIZ' };
+
+  function agentsHtml() {
+    const pending = state.agent.outbox.filter((i) => i.status === 'pending');
+    const done = state.agent.outbox.filter((i) => i.status !== 'pending').slice(0, 15);
+
+    const card = (i, actions) =>
+      '<div class="proposal">' +
+      '<div class="proposal-head"><span class="status-tag ' + (i.status === 'sent' ? 'on' : i.status === 'pending' ? 'warn' : 'off') + '">' + esc(STATUS_LABEL[i.status] || i.status) + '</span> ' +
+      '<span class="cell-sub">' + esc(fmtDate(i.created_at) || '') + ' · ' + esc(i.requested_by) + '</span></div>' +
+      '<dl class="profile-list proposal-meta"><dt>GÖNDEREN</dt><dd>' + esc(i.from_alias) + '</dd>' +
+      '<dt>ALICI</dt><dd>' + esc(i.to_addresses.join(', ')) + '</dd>' +
+      (i.cc_addresses.length ? '<dt>CC</dt><dd>' + esc(i.cc_addresses.join(', ')) + '</dd>' : '') +
+      '<dt>KONU</dt><dd><strong>' + esc(i.subject) + '</strong></dd></dl>' +
+      '<pre class="proposal-body">' + esc(i.body_text) + '</pre>' +
+      (i.error ? '<div class="form-error">' + esc(i.error) + '</div>' : '') +
+      (actions ? '<div class="admin-toolbar">' + actions + '</div>' : '') +
+      '</div>';
+
+    const pendingHtml = pending.length
+      ? pending
+          .map((i) =>
+            card(
+              i,
+              '<span class="field-hint">Onaylarsanız bu metin aynen gönderilir.</span><span class="footer-right">' +
+                '<button class="btn-secondary" data-action="agent-reject" data-id="' + esc(i.id) + '">REDDET</button> ' +
+                '<button class="btn-primary" data-action="agent-approve" data-id="' + esc(i.id) + '">ONAYLA VE GÖNDER</button></span>'
+            )
+          )
+          .join('')
+      : '<div class="empty-state">Onay bekleyen gönderim yok.</div>';
+
+    let html =
+      '<div class="admin-toolbar"><span class="count">' + pending.length + ' ONAY BEKLİYOR</span>' +
+      '<button class="btn-icon" data-action="agent-refresh">YENİLE</button></div>' + pendingHtml;
+
+    if (done.length) {
+      html += '<div class="admin-toolbar"><span class="count">SON İŞLEMLER</span></div>' + done.map((i) => card(i, '')).join('');
+    }
+
+    if (isOwner) {
+      const checks = state.aliases
+        .map((a) => '<label class="check-row"><input type="checkbox" name="tAlias" value="' + esc(a.email) + '"> <span><span class="badge-tag">' + esc(a.department_badge) + '</span> ' + esc(a.email) + '</span></label>')
+        .join('');
+      const tokenRows = state.agent.tokens
+        .map((t) => {
+          const live = !t.revoked_at && new Date(t.expires_at).getTime() > Date.now();
+          return (
+            '<tr class="' + (live ? '' : 'is-disabled') + '"><td data-label="AD"><div class="cell-main">' + esc(t.name) + '</div><div class="cell-sub">' + esc(t.created_by) + '</div></td>' +
+            '<td data-label="KAPSAM">' + accessChips({ role: 'member', alias_access: t.alias_scope }) + '</td>' +
+            '<td data-label="BİTİŞ" class="mono">' + esc(fmtDate(t.expires_at) || '') + '</td>' +
+            '<td data-label="SON KULLANIM" class="mono">' + esc(fmtDate(t.last_used_at) || '—') + '</td>' +
+            '<td data-label="DURUM">' + (t.revoked_at ? '<span class="status-tag off">İPTAL</span>' : live ? '<span class="status-tag on">AKTİF</span>' : '<span class="status-tag off">SÜRESİ DOLDU</span>') + '</td>' +
+            '<td data-label="">' + (live ? '<button class="btn-danger" data-action="token-revoke" data-id="' + esc(t.id) + '">İPTAL ET</button>' : '') + '</td></tr>'
+          );
+        })
+        .join('');
+      html +=
+        '<form class="panel" id="tokenForm" novalidate><h2>YENİ AJAN ERİŞİMİ (MCP TOKEN)</h2>' +
+        '<div class="form-grid">' +
+        '<div class="input-group"><label class="input-label" for="tName">AD (ÖR. CLAUDE)</label><input id="tName" class="search-input" type="text" maxlength="100" autocomplete="off" required></div>' +
+        '<div class="input-group"><label class="input-label" for="tDays">GEÇERLİLİK</label><select id="tDays" class="select-input"><option value="30">30 gün</option><option value="90" selected>90 gün</option><option value="365">365 gün</option></select></div>' +
+        '</div><div class="input-group"><span class="input-label">HANGİ KİMLİKLERİN POSTASINI GÖREBİLİR</span>' +
+        '<label class="check-row check-all"><input type="checkbox" id="tAll"> <span>Tüm kimlikler</span></label>' +
+        '<div class="check-list" id="tChecks">' + checks + '</div></div>' +
+        '<div class="form-error" id="tokenError" role="alert"></div>' +
+        '<div class="admin-toolbar"><span class="field-hint">Ajan posta okuyabilir ve gönderim önerebilir; silemez, onayınız olmadan gönderemez.</span>' +
+        '<button class="btn-primary" type="submit">TOKEN OLUŞTUR</button></div></form>' +
+        '<div class="admin-toolbar"><span class="count">' + state.agent.tokens.length + ' TOKEN</span></div>' +
+        (state.agent.tokens.length
+          ? '<div class="table-wrap"><table class="admin-table"><thead><tr><th>AD</th><th>KAPSAM</th><th>BİTİŞ</th><th>SON KULLANIM</th><th>DURUM</th><th></th></tr></thead><tbody>' + tokenRows + '</tbody></table></div>'
+          : '<div class="empty-state">Henüz token yok.</div>');
+    }
+    return html;
+  }
+
+  async function agentDecide(id, kind) {
+    const item = state.agent.outbox.find((i) => i.id === id);
+    if (!item) return;
+    if (kind === 'approve' && !window.confirm('Bu e-posta ' + item.to_addresses.join(', ') + ' adresine ' + item.from_alias + ' kimliğiyle gönderilecek. Onaylıyor musunuz?')) return;
+    try {
+      await call('POST', '/agent/outbox/' + encodeURIComponent(id) + '/' + kind, kind === 'reject' ? { reason: 'Yönetici reddetti' } : {});
+      toast(kind === 'approve' ? 'Gönderildi' : 'Reddedildi');
+    } catch (ex) {
+      toast(ex.message, true);
+    }
+    await show('agents');
+  }
+
+  async function submitTokenForm(e) {
+    e.preventDefault();
+    const err = $('tokenError');
+    err.textContent = '';
+    const name = $('tName').value.trim();
+    const all = $('tAll').checked;
+    const aliases = all ? ['*'] : Array.from(document.querySelectorAll('input[name="tAlias"]:checked')).map((c) => c.value);
+    if (!name) return void (err.textContent = 'Bir ad girin.');
+    if (aliases.length === 0) return void (err.textContent = 'En az bir kimlik seçin veya "Tüm kimlikler"i işaretleyin.');
+    try {
+      const res = await call('POST', '/agent/tokens', { name, aliases, days: Number($('tDays').value) });
+      showToken(res.record.name, res.token);
+      await show('agents');
+    } catch (ex) {
+      err.textContent = ex.message;
+    }
+  }
+
+  async function revokeToken(id) {
+    if (!window.confirm('Bu token iptal edilsin mi? Kullanan ajanın erişimi hemen kesilir.')) return;
+    try {
+      await call('DELETE', '/agent/tokens/' + encodeURIComponent(id));
+      toast('Token iptal edildi');
+    } catch (ex) {
+      toast(ex.message, true);
+    }
+    await show('agents');
+  }
+
   // ---- audit tab -----------------------------------------------------------
   const ACTIONS = {
     login: 'Giriş yaptı',
@@ -405,6 +545,17 @@
     email_send: 'E-posta gönderdi',
     email_delete: 'E-posta sildi',
     send_denied: 'Gönderim reddedildi',
+    agent_token_create: 'Ajan token\'ı oluşturdu',
+    agent_token_revoke: 'Ajan token\'ını iptal etti',
+    outbox_approve: 'Ajan önerisini onayladı (gönderildi)',
+    outbox_reject: 'Ajan önerisini reddetti',
+    outbox_send_failed: 'Onaylanan öneri gönderilemedi',
+    outbox_approve_denied: 'Öneri onayı reddedildi',
+    mcp_mail_list: 'Ajan: posta listeledi',
+    mcp_mail_read: 'Ajan: mesaj okudu',
+    mcp_mail_stats: 'Ajan: istatistik okudu',
+    mcp_mail_mark: 'Ajan: mesajı işaretledi',
+    mcp_propose_send: 'Ajan: gönderim önerdi',
   };
   const FAILURES = new Set(['login_failed', 'login_locked', 'login_blocked_disabled', 'password_change_failed', 'send_denied']);
   const FIELD = { name: 'ad', role: 'rol', alias_access: 'kimlik erişimi', is_active: 'durum' };
@@ -482,6 +633,10 @@
       case 'close-modal': return closeModals();
       case 'close-secret': return closeSecret();
       case 'audit-refresh': return void show('audit');
+      case 'agent-refresh': return void show('agents');
+      case 'agent-approve': return void agentDecide(el.dataset.id, 'approve');
+      case 'agent-reject': return void agentDecide(el.dataset.id, 'reject');
+      case 'token-revoke': return void revokeToken(el.dataset.id);
     }
   });
 
@@ -489,6 +644,7 @@
     if (ev.target.id === 'userForm') submitUserForm(ev);
     else if (ev.target.id === 'aliasForm') submitAliasForm(ev);
     else if (ev.target.id === 'profilePwForm') submitPasswordForm(ev);
+    else if (ev.target.id === 'tokenForm') submitTokenForm(ev);
   });
 
   document.addEventListener('keydown', (ev) => {

@@ -13,6 +13,7 @@ import { apiRouter } from './routes.js';
 import { initWebSocketServer } from './websocket.js';
 import { initSmtpTransporter } from './smtpDispatcher.js';
 import { inboundRouter } from './inboundRoutes.js';
+import { mcpRouter } from './mcp.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -78,6 +79,9 @@ app.use((req: Request, res: Response, next) => {
   });
   next();
 });
+
+// MCP endpoint for AI agents (bearer token auth lives inside the router)
+app.use('/mcp', mcpRouter);
 
 // REST API
 app.use('/api', apiRouter);

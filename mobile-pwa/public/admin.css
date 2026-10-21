@@ -267,3 +267,14 @@ tr.is-disabled .cell-main, tr.is-disabled .cell-sub { color: var(--ink-tertiary)
 @media (prefers-reduced-motion: reduce) {
   .toast { transition: none; }
 }
+
+/* ---- agent send approvals ---- */
+.proposal { background: var(--bg-card); border: var(--border-grid); padding: 16px 20px; margin-bottom: 12px; }
+.proposal-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.proposal-meta { margin-bottom: 10px; }
+.proposal-body {
+  white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.55;
+  background: var(--bg-page); border: var(--border-grid); padding: 12px; max-height: 320px; overflow: auto; margin: 0;
+}
+.proposal .admin-toolbar { margin-top: 12px; margin-bottom: 0; }
