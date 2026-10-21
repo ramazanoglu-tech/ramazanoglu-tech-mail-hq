@@ -31,6 +31,7 @@ import { getSyncStatus, pollInbox } from './syncStatus.js';
 import { broadcastWebSocket, getConnectedClientCount, refreshUserSockets } from './websocket.js';
 import { SWISS_EMAIL_TEMPLATES } from './templates.js';
 import { adminRouter } from './adminRoutes.js';
+import { agentRouter } from './agentRoutes.js';
 import { Email } from './types.js';
 
 export const apiRouter = Router();
@@ -552,3 +553,4 @@ apiRouter.post(
 // ---------------------------------------------------------------------------
 
 apiRouter.use('/admin', adminRouter);
+apiRouter.use('/agent', agentRouter);

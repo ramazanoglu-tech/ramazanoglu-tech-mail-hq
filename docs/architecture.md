@@ -41,6 +41,10 @@ zaman damgasını (5 dakika) ve alıcının şirket alan adında olmasını doğ
 Kişi bazlı hesaplar (`owner`, `admin`, `member`), alias bazlı yetki, hatalı girişte kilitleme,
 denetim kaydı. Ayrıntı için `SECURITY.md` ve `docs/runbook.md`.
 
+## Ajan erişimi
+
+Yapay zekâ ajanları `/mcp` uç noktasından (MCP, Bearer `mhq_` token) bağlanır. Token kapsamlıdır, süreli ve iptal edilebilirdir; ajan okuyabilir ve gönderim *önerebilir*, silemez ve onaysız gönderemez. Ayrıntı: [agent-access.md](agent-access.md).
+
 ## Ortamlar
 
 | Ortam | Amaç | Nasıl çalışır |
