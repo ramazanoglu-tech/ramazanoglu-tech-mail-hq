@@ -80,6 +80,21 @@ app.use((req: Request, res: Response, next) => {
   next();
 });
 
+// RFC 9116 security.txt
+const SECURITY_TXT = [
+  'Contact: mailto:security@ramazanoglu.tech',
+  'Contact: https://github.com/ramazanoglu-tech/ramazanoglu-tech-mail-hq/security/advisories/new',
+  'Expires: 2027-12-31T23:59:59.000Z',
+  'Preferred-Languages: tr, en',
+  'Policy: https://github.com/ramazanoglu-tech/ramazanoglu-tech-mail-hq/blob/main/SECURITY.md',
+  'Canonical: https://mail.ramazanoglu.tech/.well-known/security.txt',
+].join('\n');
+
+app.get(['/.well-known/security.txt', '/security.txt'], (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.send(SECURITY_TXT);
+});
+
 // MCP endpoint for AI agents (bearer token auth lives inside the router)
 app.use('/mcp', mcpRouter);
 
