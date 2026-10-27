@@ -21,7 +21,7 @@
   "author": "Ramazanoğlu Technologies Inc.",
   "license": "Proprietary",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^18.0.8",
